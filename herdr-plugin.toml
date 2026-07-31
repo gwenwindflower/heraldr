@@ -1,0 +1,51 @@
+id = "livery"
+name = "Livery"
+version = "0.4.0"
+min_herdr_version = "0.7.5"
+description = "Dress herdr tabs as [N] <icon> <program> and feed sidebar rows composable tokens: $jump (workspace jump number) plus $space/$worktree (repo + nested worktree names for agent rows). Labels stay bare for the agents panel and navigator; manual renames win. Icons come from the hand-edited icons.conf manifest."
+platforms = ["linux", "macos"]
+
+# The real work happens in a per-session watcher daemon (`livery watch`) that
+# subscribes to herdr's socket event stream and polls the focused pane's
+# foreground process between events. Plugin events only need to resurrect a
+# dead watcher, so each one runs `livery kick` — a sub-millisecond liveness
+# probe that spawns the watcher when the session has none.
+#
+# Linked locally from the dotfiles (build first: `cargo build --release`):
+#   herdr plugin link ~/.config/herdr/plugins/livery
+
+[[events]]
+on = "workspace.created"
+command = ["/Users/winnie/.config/herdr/plugins/livery/target/release/livery", "kick"]
+
+[[events]]
+on = "tab.created"
+command = ["/Users/winnie/.config/herdr/plugins/livery/target/release/livery", "kick"]
+
+[[events]]
+on = "tab.focused"
+command = ["/Users/winnie/.config/herdr/plugins/livery/target/release/livery", "kick"]
+
+[[events]]
+on = "pane.focused"
+command = ["/Users/winnie/.config/herdr/plugins/livery/target/release/livery", "kick"]
+
+[[events]]
+on = "pane.agent_detected"
+command = ["/Users/winnie/.config/herdr/plugins/livery/target/release/livery", "kick"]
+
+# Opt a manually-renamed tab back into auto-naming:
+#   herdr plugin action invoke livery.reset
+[[actions]]
+id = "reset"
+title = "Livery: reset tab to automatic naming"
+contexts = ["global"]
+command = ["/Users/winnie/.config/herdr/plugins/livery/target/release/livery", "reset"]
+
+# Stop the watcher and strip every "[N] " prefix and auto-name. Run before
+# uninstalling so nothing redresses the labels afterward.
+[[actions]]
+id = "clear"
+title = "Livery: strip all chrome"
+contexts = ["global"]
+command = ["/Users/winnie/.config/herdr/plugins/livery/target/release/livery", "clear"]

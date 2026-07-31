@@ -1,0 +1,17 @@
+[package]
+name = "livery"
+version = "0.4.0"
+edition = "2024"
+description = "Herdr tab, workspace, and agent chrome: [N] <icon> <name> labels driven by the live session"
+license = "MIT"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive", "wrap_help"] }
+libc = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+lto = true
+strip = true
