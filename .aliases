@@ -1,0 +1,11 @@
+[aliases]
+b = "cargo build --locked --release"
+bd = "b; hl"
+bi = "b; i"
+c = "cargo clippy --all-targets --all-features --locked -- -D warnings"
+fct = "fmt; c; t"
+fmt = "cargo fmt --all --check"
+hl = "herdr plugin link ."
+i = "cargo install --path ."
+ship = "fct; bi"
+t = "cargo test --all-features --locked"
