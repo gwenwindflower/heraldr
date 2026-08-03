@@ -4,6 +4,13 @@ version = "0.4.0"
 edition = "2024"
 description = "Herdr tab, workspace, and agent chrome: [N] <icon> <name> labels driven by the live session"
 license = "MIT"
+repository = "https://github.com/gwenwindflower/livery"
+
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/v{ version }/{ name }-{ target }-v{ version }{ archive-suffix }"
+bin-dir = "{ name }-{ target }-v{ version }/{ bin }{ binary-ext }"
+pkg-fmt = "tgz"
+disabled-strategies = ["quick-install", "compile"]
 
 [dependencies]
 anyhow = "1"
