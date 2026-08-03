@@ -120,5 +120,9 @@ Run the local checks with:
 cargo fmt --all --check
 cargo clippy --all-targets --all-features --locked -- -D warnings
 cargo test --all-features --locked
+./scripts/sync-version.sh --check
 ./tests/install-binary.sh
+./tests/release-scripts.sh
 ```
+
+Maintainers can find the reviewed git-cliff and GitHub Release flow in [RELEASING.md](RELEASING.md).

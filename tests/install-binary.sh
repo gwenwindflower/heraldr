@@ -5,6 +5,17 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 sandbox="$(mktemp -d)"
 trap 'rm -rf "$sandbox"' EXIT
+project_version="$(awk '
+  $0 == "[package]" { package = 1; next }
+  package && /^\[/ { exit }
+  package && /^[[:space:]]*version[[:space:]]*=/ {
+    line = $0
+    sub(/^[^"]*"/, "", line)
+    sub(/".*$/, "", line)
+    print line
+    exit
+  }
+' "$repo_root/Cargo.toml")"
 
 make_case() {
 	local name="$1"
@@ -19,14 +30,14 @@ set -euo pipefail
 
 case "$1" in
   pkgid)
-    printf '%s\n' 'path+file:///tmp/livery#livery@0.4.0'
+    printf 'path+file:///tmp/livery#livery@%s\n' "$TEST_VERSION"
     ;;
   build)
     printf '%s\n' cargo-build >> "$TEST_LOG"
     mkdir -p target/release
-    cat > target/release/livery <<'BINARY'
+    cat > target/release/livery <<BINARY
 #!/bin/sh
-printf '%s\n' 'livery 0.4.0'
+printf '%s\n' 'livery $TEST_VERSION'
 BINARY
     chmod +x target/release/livery
     ;;
@@ -69,9 +80,9 @@ while [[ \$# -gt 0 ]]; do
   shift
 done
 mkdir -p "\$install_path"
-cat > "\$install_path/livery" <<'BINARY'
+cat > "\$install_path/livery" <<BINARY
 #!/bin/sh
-printf '%s\\n' 'livery 0.4.0'
+printf '%s\\n' 'livery \$TEST_VERSION'
 BINARY
 chmod +x "\$install_path/livery"
 SCRIPT
@@ -82,36 +93,36 @@ run_installer() {
 	local root="$1"
 	(
 		cd "$root"
-		TEST_LOG="$root/install.log" PATH="$root/fakebin:/usr/bin:/bin" ./scripts/install-binary.sh
+		TEST_LOG="$root/install.log" TEST_VERSION="$project_version" PATH="$root/fakebin:/usr/bin:/bin" ./scripts/install-binary.sh
 	)
 }
 
 current_root="$(make_case current)"
-write_livery "$current_root/target/release/livery" 0.4.0
+write_livery "$current_root/target/release/livery" "$project_version"
 write_binstall "$current_root/fakebin/cargo-binstall"
 run_installer "$current_root"
 [[ ! -s "$current_root/install.log" ]]
 
 path_root="$(make_case path)"
-write_livery "$path_root/fakebin/livery" 0.4.0
+write_livery "$path_root/fakebin/livery" "$project_version"
 write_binstall "$path_root/fakebin/cargo-binstall"
 run_installer "$path_root"
 [[ ! -s "$path_root/install.log" ]]
-[[ "$("$path_root/target/release/livery" --version)" == "livery 0.4.0" ]]
+[[ "$("$path_root/target/release/livery" --version)" == "livery $project_version" ]]
 
 binstall_root="$(make_case binstall)"
 write_binstall "$binstall_root/fakebin/cargo-binstall"
 run_installer "$binstall_root"
 [[ "$(<"$binstall_root/install.log")" == cargo-binstall ]]
-[[ "$("$binstall_root/target/release/livery" --version)" == "livery 0.4.0" ]]
+[[ "$("$binstall_root/target/release/livery" --version)" == "livery $project_version" ]]
 
 stale_root="$(make_case stale)"
-write_livery "$stale_root/target/release/livery" 0.3.0
-write_livery "$stale_root/fakebin/livery" 0.3.0
+write_livery "$stale_root/target/release/livery" 0.0.0
+write_livery "$stale_root/fakebin/livery" 0.0.0
 write_binstall "$stale_root/fakebin/cargo-binstall"
 run_installer "$stale_root"
 [[ "$(<"$stale_root/install.log")" == cargo-binstall ]]
-[[ "$("$stale_root/target/release/livery" --version)" == "livery 0.4.0" ]]
+[[ "$("$stale_root/target/release/livery" --version)" == "livery $project_version" ]]
 
 fallback_root="$(make_case fallback)"
 write_binstall "$fallback_root/fakebin/cargo-binstall" 1

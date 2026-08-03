@@ -1,6 +1,6 @@
 id = "livery"
 name = "Livery"
-version = "0.4.0"
+version = "0.0.1"
 min_herdr_version = "0.7.5"
 description = "Dress herdr tabs as [N] <icon> <program> and feed sidebar rows composable tokens: $jump (workspace jump number) plus $space/$worktree (repo + nested worktree names for agent rows). Labels stay bare for the agents panel and navigator; manual renames win. Icons come from the hand-edited icons.conf manifest."
 platforms = ["linux", "macos"]

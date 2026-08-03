@@ -1,6 +1,6 @@
 [package]
 name = "livery"
-version = "0.4.0"
+version = "0.0.1"
 edition = "2024"
 description = "Herdr tab, workspace, and agent chrome: [N] <icon> <name> labels driven by the live session"
 license = "MIT"
