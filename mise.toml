@@ -3,6 +3,7 @@ git-cliff = "2.14.1"
 pinact = "4.1.1"
 zizmor = "1.30.0"
 shellcheck = "0.11.0"
+prek = "0.5.2"
 rust = { version = "1.98.0", profile = "minimal", components = ["clippy", "rustfmt"] }
 cargo-binstall = "1.22.0"
 
@@ -24,10 +25,6 @@ run = "cargo install --path . --locked --force"
 [tasks.fmt]
 description = "Rewrite every file to the rustfmt style"
 run = "cargo fmt --all"
-
-[tasks."lint:fmt"]
-description = "Verify formatting without rewriting files"
-run = "cargo fmt --all --check"
 
 [tasks."lint:clippy"]
 description = "Lint every target and feature, treating warnings as errors"
@@ -114,9 +111,13 @@ depends = ["test:*"]
 
 # Checks
 
-[tasks."lint:shell"]
-description = "Lint every task script and test with shellcheck"
-run = "shellcheck --shell=bash --format=gcc mise-tasks/*/* tests/*.sh"
+[tasks."lint:hooks"]
+description = "Run every prek hook against the whole tree, the same hooks each commit runs on staged files"
+run = "prek run --all-files"
+
+[tasks."hooks:install"]
+description = "Install the prek commit and commit-msg hooks into this clone"
+run = "prek install --hook-type pre-commit --hook-type commit-msg"
 
 [tasks.check]
 description = "Run every check CI runs"

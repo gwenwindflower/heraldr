@@ -19,3 +19,5 @@ Every release is cut from a clean `main` by a human-gated pipeline that a contri
 - **dev-R011** — Never: Heraldr publishes to a Homebrew tap; Herdr's plugin installer is the distribution path.
 - **dev-R012** — Always: `mise run release:rehearse` runs every read-only step of the release and writes nothing.
 - **dev-R013** — Always: every manifest entrypoint invokes `heraldr` from `PATH`, and the build hook installs the exact declared version there.
+- **dev-R014** — Always: every commit passes the prek hooks on its staged files, and a subject git-cliff cannot parse is rejected at commit time.
+- **dev-R015** — When a branch merges through `wt merge`, `lint:*` runs before the squash and `release:check` after the rebase; either failing aborts the merge.

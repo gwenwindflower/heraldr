@@ -47,7 +47,7 @@ fi
 
 cargo install --path . --locked --force
 if ! path_binary=$(command -v heraldr 2>/dev/null); then
-	printf 'Cargo installed Heraldr, but it is not on PATH. Add $CARGO_HOME/bin (normally ~/.cargo/bin) to PATH.\n' >&2
+	printf 'Cargo installed Heraldr, but it is not on PATH. Add CARGO_HOME/bin (normally ~/.cargo/bin) to PATH.\n' >&2
 	exit 1
 fi
 if ! is_current "$path_binary"; then
