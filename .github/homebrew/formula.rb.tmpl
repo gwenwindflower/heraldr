@@ -1,0 +1,36 @@
+class %%CLASS%% < Formula
+  desc "%%DESCRIPTION%%"
+  homepage "https://github.com/%%REPO%%"
+  version "%%VERSION%%"
+  license "MIT"
+
+  on_macos do
+    on_arm do
+      url "%%URL:aarch64-apple-darwin%%"
+      sha256 "%%SHA:aarch64-apple-darwin%%"
+    end
+    on_intel do
+      url "%%URL:x86_64-apple-darwin%%"
+      sha256 "%%SHA:x86_64-apple-darwin%%"
+    end
+  end
+
+  on_linux do
+    on_arm do
+      url "%%URL:aarch64-unknown-linux-gnu%%"
+      sha256 "%%SHA:aarch64-unknown-linux-gnu%%"
+    end
+    on_intel do
+      url "%%URL:x86_64-unknown-linux-gnu%%"
+      sha256 "%%SHA:x86_64-unknown-linux-gnu%%"
+    end
+  end
+
+  def install
+    bin.install "heraldr"
+  end
+
+  test do
+    assert_match version.to_s, shell_output("#{bin}/heraldr --version")
+  end
+end
