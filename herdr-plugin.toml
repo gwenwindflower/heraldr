@@ -1,8 +1,8 @@
-id = "livery"
-name = "Livery"
+id = "heraldr"
+name = "Heraldr"
 version = "0.0.1"
 min_herdr_version = "0.7.5"
-description = "Dress herdr tabs as [N] <icon> <program> and feed sidebar rows composable tokens: $jump (workspace jump number) plus $space/$worktree (repo + nested worktree names for agent rows). Labels stay bare for the agents panel and navigator; manual renames win. Icons come from the hand-edited icons.conf manifest."
+description = "Dress herdr tabs as [N] <icon> <program> and feed sidebar rows composable tokens: $jump (workspace jump number) plus $space/$worktree (repo + nested worktree names for agent rows). Labels stay bare for the agents panel and navigator; manual renames win. Icons reload from icons.conf with a compiled fallback."
 platforms = ["linux", "macos"]
 
 [[build]]
@@ -10,32 +10,32 @@ command = ["sh", "scripts/install-binary.sh"]
 
 [[events]]
 on = "workspace.created"
-command = ["target/release/livery", "kick"]
+command = ["heraldr", "kick"]
 
 [[events]]
 on = "tab.created"
-command = ["target/release/livery", "kick"]
+command = ["heraldr", "kick"]
 
 [[events]]
 on = "tab.focused"
-command = ["target/release/livery", "kick"]
+command = ["heraldr", "kick"]
 
 [[events]]
 on = "pane.focused"
-command = ["target/release/livery", "kick"]
+command = ["heraldr", "kick"]
 
 [[events]]
 on = "pane.agent_detected"
-command = ["target/release/livery", "kick"]
+command = ["heraldr", "kick"]
 
 [[actions]]
 id = "reset"
-title = "Livery: reset tab to automatic naming"
+title = "Heraldr: reset tab to automatic naming"
 contexts = ["global"]
-command = ["target/release/livery", "reset"]
+command = ["heraldr", "reset"]
 
 [[actions]]
 id = "clear"
-title = "Livery: strip all chrome"
+title = "Heraldr: strip all chrome"
 contexts = ["global"]
-command = ["target/release/livery", "clear"]
+command = ["heraldr", "clear"]

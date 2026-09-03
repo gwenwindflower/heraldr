@@ -4,7 +4,7 @@
 //! events.subscribe stream for structural changes and polls the focused
 //! pane's foreground process between events — the poll is what catches
 //! transitions no event covers, like yazi handing the pane to nvim. Manifest
-//! events all run `livery kick`, which spawns a watcher if none holds the
+//! events all run `heraldr kick`, which spawns a watcher if none holds the
 //! session's pidfile lock, so any activity resurrects a dead daemon.
 
 use std::collections::hash_map::DefaultHasher;
@@ -28,7 +28,7 @@ use crate::state::{Store, state_dir};
 /// Everything that can change a label or a position. The subscription surface
 /// is a superset of what plugin [[events]] deliver — pane.updated and
 /// layout.updated exist only here.
-// workspace.metadata_updated is deliberately absent: livery's own $jump
+// workspace.metadata_updated is deliberately absent: Heraldr's own $jump
 // token reports would re-fire it every pass.
 const SUBSCRIPTIONS: &[&str] = &[
     "workspace.created",
@@ -175,15 +175,10 @@ fn focused_pass(client: &Client) -> Result<()> {
 }
 
 /// The plugin root, where icons.conf lives: HERDR_PLUGIN_ROOT when herdr
-/// invoked us, else the directory of the running binary's plugin checkout
-/// (target/release/livery -> ../..).
+/// invoked us, or the current directory for direct development commands.
 pub fn plugin_root() -> PathBuf {
-    if let Some(root) = std::env::var_os("HERDR_PLUGIN_ROOT") {
-        return PathBuf::from(root);
-    }
-    std::env::current_exe()
-        .ok()
-        .and_then(|exe| exe.ancestors().nth(3).map(PathBuf::from))
+    std::env::var_os("HERDR_PLUGIN_ROOT")
+        .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("."))
 }
 
@@ -195,14 +190,14 @@ pub fn kick() -> Result<()> {
     if PidLock::holder(&client).is_some() {
         return Ok(());
     }
-    let exe = std::env::current_exe().context("resolving livery binary path")?;
+    let exe = std::env::current_exe().context("resolving heraldr binary path")?;
     std::process::Command::new(exe)
         .arg("watch")
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .spawn()
-        .context("spawning livery watch")?;
+        .context("spawning heraldr watch")?;
     Ok(())
 }
 

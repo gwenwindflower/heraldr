@@ -2,14 +2,17 @@
 //! helpers. Nothing here touches herdr or the filesystem beyond loading the
 //! icon manifest, so the whole module is unit-testable in isolation.
 //!
-//! Icons load from `icons.conf` in the plugin root: one
+//! Icons use the compiled `icons.conf` as a baseline and reload the copy in
+//! the plugin root when available: one
 //! `<glyph> <programs...>` row per icon, full-line `#` comments, and a `* `
 //! row naming the fallback glyph for unlisted programs. The manifest is
 //! hand-edited only — agent-authored content silently strips U+E000-range
-//! Nerd Font glyphs, which is why the glyphs live in data, not code. Test
-//! pins below spell glyphs as `\u{...}` escapes for the same reason.
+//! Nerd Font glyphs, which is why the glyphs live in data, not Rust source.
+//! Test pins below spell glyphs as `\u{...}` escapes for the same reason.
 
 use std::path::Path;
+
+const BUILT_IN_MANIFEST: &str = include_str!("../icons.conf");
 
 /// Label shown at a bare prompt, and for any program that resolves away.
 pub const SHELL: &str = "fish";
@@ -34,12 +37,32 @@ pub const MAX_NAME_LEN: usize = 20;
 pub struct Icons {
     rows: Vec<(Vec<String>, String)>,
     fallback: String,
+    built_in: bool,
 }
 
 impl Icons {
-    /// A missing or unreadable manifest yields empty icons; labels still work.
+    /// A usable runtime manifest wins; missing or incomplete data falls back
+    /// to the copy compiled into the binary.
     pub fn load(path: &Path) -> Self {
-        Self::parse(&std::fs::read_to_string(path).unwrap_or_default())
+        match std::fs::read_to_string(path) {
+            Ok(text) => Self::runtime_or_built_in(&text),
+            Err(_) => Self::built_in(),
+        }
+    }
+
+    fn runtime_or_built_in(text: &str) -> Self {
+        let icons = Self::parse(text);
+        if icons.fallback.is_empty() {
+            Self::built_in()
+        } else {
+            icons
+        }
+    }
+
+    fn built_in() -> Self {
+        let mut icons = Self::parse(BUILT_IN_MANIFEST);
+        icons.built_in = true;
+        icons
     }
 
     pub fn parse(text: &str) -> Self {
@@ -71,6 +94,10 @@ impl Icons {
 
     pub fn len(&self) -> usize {
         self.rows.len()
+    }
+
+    pub fn is_built_in(&self) -> bool {
+        self.built_in
     }
 }
 
@@ -144,6 +171,30 @@ mod tests {
 
     fn manifest() -> Icons {
         Icons::parse(include_str!("../icons.conf"))
+    }
+
+    #[test]
+    fn missing_runtime_manifest_uses_built_in_icons() {
+        let path = std::env::temp_dir().join(format!(
+            "heraldr-icons-missing-{}-{}",
+            std::process::id(),
+            line!()
+        ));
+        let icons = Icons::load(&path);
+
+        assert!(icons.is_built_in());
+        assert_eq!(icons.get("fish"), "\u{f489}");
+        assert_eq!(icons.get("yazi"), "\u{f0036}");
+        assert_eq!(icons.get("no-such-program"), "\u{f0e7}");
+    }
+
+    #[test]
+    fn incomplete_runtime_manifest_uses_built_in_icons() {
+        let icons = Icons::runtime_or_built_in("\u{f489} fish");
+
+        assert!(icons.is_built_in());
+        assert_eq!(icons.get("yazi"), "\u{f0036}");
+        assert_eq!(icons.get("no-such-program"), "\u{f0e7}");
     }
 
     #[test]

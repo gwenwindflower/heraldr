@@ -47,7 +47,7 @@ impl Client {
             .with_context(|| format!("connecting to herdr at {}", self.socket.display()))?;
         stream.set_read_timeout(Some(Duration::from_secs(10)))?;
         stream.set_write_timeout(Some(Duration::from_secs(10)))?;
-        let request = json!({ "id": "livery", "method": method, "params": params });
+        let request = json!({ "id": "heraldr", "method": method, "params": params });
         stream.write_all(request.to_string().as_bytes())?;
         stream.write_all(b"\n")?;
 
@@ -77,7 +77,7 @@ impl Client {
             .with_context(|| format!("connecting to herdr at {}", self.socket.display()))?;
         let subscriptions: Vec<Value> = types.iter().map(|t| json!({ "type": t })).collect();
         let request = json!({
-            "id": "livery-sub",
+            "id": "heraldr-sub",
             "method": "events.subscribe",
             "params": { "subscriptions": subscriptions },
         });

@@ -1,128 +1,102 @@
-# Livery
+# Heraldr
 
-[![CI](https://github.com/gwenwindflower/livery/actions/workflows/ci.yml/badge.svg)](https://github.com/gwenwindflower/livery/actions/workflows/ci.yml)
+[![CI](https://github.com/supermodellabs/heraldr/actions/workflows/ci.yml/badge.svg)](https://github.com/supermodellabs/heraldr/actions/workflows/ci.yml)
 
-Livery gives [Herdr](https://herdr.dev) tabs and sidebar rows compact, live context:
+Heraldr gives [Herdr](https://herdr.dev) tabs and sidebar rows compact, live context:
 
 - Tabs follow the foreground program and read as `[N] <icon> <program>`.
 - Workspace rows expose their jump number through Herdr's `$jump` display token.
 - Agent rows expose the repository and linked worktree through `$space` and `$worktree`.
 - Manual tab names always win.
 
-Livery supports Linux and macOS. Its icons require a terminal font with Nerd Font glyphs.
+Heraldr supports Linux and macOS. Its icons require a terminal font with Nerd Font glyphs.
 
 ## Install
 
-You need [Herdr](https://herdr.dev/docs/install/) 0.7.5 or later, Git, and a compatible [Rust toolchain with Cargo](https://www.rust-lang.org/tools/install). [Cargo Binstall](https://github.com/cargo-bins/cargo-binstall#installation) is optional, but makes installation much faster when Livery has a release artifact for your platform.
+You need [Herdr](https://herdr.dev/docs/install/) 0.7.5 or later, Git, and a compatible [Rust toolchain with Cargo](https://www.rust-lang.org/tools/install). [Cargo Binstall](https://github.com/cargo-bins/cargo-binstall#installation) is optional, but installs a release artifact much faster than compiling from source. Install the plugin:
 
 ```bash
-herdr plugin install gwenwindflower/livery
+herdr plugin install supermodellabs/heraldr
 ```
 
-Herdr previews the plugin commands and enables Livery for every session owned by the current user. The installer reuses a matching `livery` binary from the checkout or your `PATH`, then tries Cargo Binstall, then builds from source. A workspace, tab, or pane event starts the per-session watcher.
+Herdr previews the plugin commands, then the build hook installs the matching Heraldr release on your `PATH`. It tries Cargo Binstall first when available, then compiles from source with Cargo. Plugin events and actions invoke `heraldr` directly; a workspace, tab, or pane event starts the per-session watcher.
 
 Verify the installation:
 
 ```bash
-herdr plugin list --plugin livery
+herdr plugin list --plugin heraldr
 ```
+
+> [!TIP]
+> If you have mise installed, you can also use [mise to manage rust tools](https://mise.jdx.dev/lang/rust.html), it will use `cargo-binstall` to install tools by default if added as a tool in your `mise.toml` file. If you'd prefer to have mise manage your cargo bin tools, run `mise use -g cargo:heraldr`. The plugin install will not install the binary if it's already available on `PATH`. We use mise for development and CI, so this is convenient if you also want to develop Heraldr locally.
 
 ### Update
 
-Stop the running watcher, then reinstall the GitHub plugin to refresh both its managed checkout and its binary:
+Stop the running watcher, then reinstall the plugin. Its build hook updates the binary on your `PATH`:
 
 ```bash
-herdr plugin action invoke livery.clear
-herdr plugin install gwenwindflower/livery
+herdr plugin action invoke heraldr.clear
+herdr plugin install supermodellabs/heraldr
 ```
 
-The next workspace, tab, or pane event starts the replacement watcher. The installer compares binaries against the version in Livery's Cargo manifest before reusing them. Herdr refuses to replace a local link with a GitHub install; [switch back to the released plugin](#switch-between-local-and-released-livery) first.
-
-### Install the binary yourself
-
-Install the latest release artifact with Cargo Binstall:
-
-```bash
-cargo binstall livery --git https://github.com/gwenwindflower/livery
-```
-
-Or compile and install it from source:
-
-```bash
-cargo install --git https://github.com/gwenwindflower/livery --locked
-```
-
-These commands put `livery` on your `PATH`; `herdr plugin install gwenwindflower/livery` still registers the manifest and will reuse the binary when its version matches.
+The next workspace, tab, or pane event starts the replacement watcher. Herdr refuses to replace a local link with a GitHub install; [switch back to the released plugin](#switch-between-local-and-released-heraldr) first.
 
 ## Actions
 
 A manual tab rename opts that tab out of automatic naming. Adopt the current tab again with:
 
 ```bash
-herdr plugin action invoke livery.reset
+herdr plugin action invoke heraldr.reset
 ```
 
-Before uninstalling, stop the watcher and remove Livery's display metadata:
+Before uninstalling, stop the watcher and remove Heraldr's display metadata:
 
 ```bash
-herdr plugin action invoke livery.clear
-herdr plugin uninstall livery
+herdr plugin action invoke heraldr.clear
+herdr plugin uninstall heraldr
 ```
 
 ## Local development
 
-Build the checkout before linking it because `plugin link` does not run manifest build commands:
+Development runs on [mise](https://mise.jdx.dev), which owns both the toolchain and the task list. Clone the repository, then:
 
 ```bash
-cargo build --locked --release
-herdr plugin link .
+mise trust
+mise install
 ```
 
-The link points directly at the checkout, so code and `icons.conf` stay local. Rebuild after Rust changes; relink only when `herdr-plugin.toml` changes. Stop the running watcher before replacing its binary:
+That installs Rust, git-cliff, zizmor, pinact, and cargo-binstall at the versions `mise.toml` pins, so your machine and CI run the same tools. Herdr itself is the one prerequisite mise does not manage.
+
+`mise tasks` lists every task with its description; `mise tasks info <task>` prints one task's full definition, arguments, and source. Tasks are grouped by prefix — `dev:`, `herdr:`, `test:`, `ci-audit:`, `version:`, `release:` — and the common ones carry single-letter aliases.
+
+Put the checkout in front of Herdr:
 
 ```bash
-herdr plugin action invoke livery.clear
-cargo build --locked --release
+mise run dev:reload
 ```
 
-### Switch between local and released Livery
+That stops the running watcher, installs the checkout's binary on your `PATH`, and links its manifest. The link points directly at the checkout, so `herdr-plugin.toml` and `icons.conf` stay local. `icons.conf` edits apply live; the binary carries the same map as a fallback when the checkout is unavailable. Rerun `dev:reload` after Rust changes.
 
-Replace a GitHub install with the local checkout:
+`mise run dev` is the whole loop: every check and test, then a fresh build linked into Herdr.
 
-```bash
-herdr plugin action invoke livery.clear
-herdr plugin uninstall livery
-cargo build --locked --release
-herdr plugin link .
-```
+### Switch between local and released Heraldr
 
-Test a release after local development:
+`dev:local` replaces a GitHub install with the checkout. `dev:released` swaps back to the published plugin, for testing a release the way a user receives it.
 
-```bash
-herdr plugin action invoke livery.clear
-herdr plugin unlink livery
-herdr plugin install gwenwindflower/livery
-```
-
-`unlink` leaves the checkout alone. `uninstall`, `unlink`, and reinstall also leave Livery's user config in place. Print its stable location with:
-
-```bash
-herdr plugin config-dir livery
-```
-
-With Herdr's default paths, future Livery config lives under `~/.config/herdr/plugins/config/livery`, separate from either source checkout.
+`herdr:unlink` leaves the checkout alone, and unlinking, uninstalling, and reinstalling all leave Heraldr's user config in place. Print its stable location with `herdr plugin config-dir heraldr` — with Herdr's default paths it lives under `~/.config/herdr/plugins/config/heraldr`, separate from either source checkout.
 
 ### Checks
 
-Run the local checks with:
+`mise run check` is the full local gate. CI installs mise and runs these same tasks, so a task definition is the only place a check lives.
 
-```bash
-cargo fmt --all --check
-cargo clippy --all-targets --all-features --locked -- -D warnings
-cargo test --all-features --locked
-./scripts/sync-version.sh --check
-./tests/install-binary.sh
-./tests/release-scripts.sh
-```
+## Releases
 
-Maintainers can find the reviewed git-cliff and GitHub Release flow in [RELEASING.md](RELEASING.md).
+`Cargo.toml` is the source of truth for Heraldr's version. The release tasks synchronize `Cargo.lock` and `herdr-plugin.toml`, validate the repository, and keep release notes in the GitHub Release rather than a separate changelog file.
+
+Releases run from a clean local `main` with `gh` already authenticated. All tags are `vMAJOR.MINOR.PATCH`. The policy in `cliff.toml` begins at `v0.0.1`, keeps `0.0.x` releases on patch bumps, and does not promote the project to `0.1.0` or `1.0.0` automatically.
+
+`mise run release:rehearse` is the dry run: it exercises every read-only step against the current checkout and prints the notes that would ship, without touching a file, a branch, or GitHub. `mise run release` then runs the pipeline end to end — preflight, version bump, the full gate, the release commit, push, and publish. The two steps that leave your machine, `release:push` and `release:create`, each require a confirmation that defaults to no. Every step is also runnable on its own, so a pipeline that stops partway can be resumed from where it stopped.
+
+GitHub creates the tag at the default-branch head when it publishes the release. Do not create or push a separate tag. The `Release build` workflow then verifies the tag against Cargo, builds each supported target, and attaches archives and checksums. `mise run release:verify` inspects the result.
+
+Rerun failed release jobs from their original event so they retain permission to upload assets: `gh run rerun <run-id> --failed`. To rebuild an existing tag for diagnosis without changing the release, run `gh workflow run release-build.yml -f tag=vX.Y.Z` — it keeps outputs as workflow artifacts.

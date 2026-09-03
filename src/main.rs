@@ -1,4 +1,4 @@
-//! livery — herdr tab, workspace, and agent chrome.
+//! Heraldr — Herdr tab, workspace, and agent chrome.
 //!
 //! Tabs auto-name as "[N] <icon> <program>" after their foreground program
 //! (the shell at a bare prompt), workspaces and agents get the "[N] " prefix
@@ -30,17 +30,17 @@ use crate::watch::{PidLock, plugin_root};
 
 #[derive(Parser)]
 #[command(
-    name = "livery",
+    name = "heraldr",
     version,
     about = "Herdr tab, workspace, and agent chrome: [N] <icon> <name> labels driven by the live session",
-    long_about = "Livery dresses a herdr session: tabs auto-name as '[N] <icon> <program>' after \
+    long_about = "Heraldr keeps a Herdr session legible: tabs auto-name as '[N] <icon> <program>' after \
 their live foreground program, and sidebar rows get composable display-only metadata tokens — \
 '$jump' (a workspace's 1-9 jump number) on workspaces, '$space' and '$worktree' (repo name + \
 nested worktree name) on panes for agent rows. Labels stay bare everywhere else (agents panel, \
 navigator), and manual renames always win. A per-session watcher keeps everything current from \
-herdr's event stream plus a focused-pane poll; herdr plugin events only need to run `livery \
-kick` to keep the watcher alive. Icons come from the hand-edited icons.conf manifest in the \
-plugin root."
+herdr's event stream plus a focused-pane poll; herdr plugin events only need to run `heraldr \
+kick` to keep the watcher alive. Icons reload from the hand-edited icons.conf manifest when \
+available and otherwise use the copy compiled into the binary."
 )]
 struct Cli {
     #[command(subcommand)]
@@ -61,7 +61,7 @@ enum Command {
     Reconcile,
     /// Re-adopt the current tab into automatic naming after a manual rename
     Reset,
-    /// Strip all livery chrome and stop the watcher (run before uninstalling)
+    /// Strip all Heraldr chrome and stop the watcher (run before uninstalling)
     Clear,
     /// Show watcher, socket, and state health
     Status,
@@ -139,12 +139,17 @@ fn status() -> Result<()> {
         Some(pid) => println!("watcher  running (pid {pid})"),
         None => println!("watcher  not running — any herdr event will kick one off"),
     }
-    let icons = Icons::load(&plugin_root().join("icons.conf"));
-    println!(
-        "icons    {} rows from {}",
-        icons.len(),
-        plugin_root().join("icons.conf").display()
-    );
+    let icon_path = plugin_root().join("icons.conf");
+    let icons = Icons::load(&icon_path);
+    if icons.is_built_in() {
+        println!(
+            "icons    {} built-in rows ({} unavailable or incomplete)",
+            icons.len(),
+            icon_path.display()
+        );
+    } else {
+        println!("icons    {} rows from {}", icons.len(), icon_path.display());
+    }
     println!("state    {} tabs tracked", Store::load().len());
     Ok(())
 }

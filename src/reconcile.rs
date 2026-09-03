@@ -14,7 +14,7 @@ use crate::rpc::Client;
 use crate::snapshot::{Snapshot, Workspace, foreground_program};
 use crate::state::Store;
 
-const METADATA_SOURCE: &str = "livery";
+const METADATA_SOURCE: &str = "heraldr";
 const JUMP_TOKEN: &str = "jump";
 const JUMP_TTL_MS: u64 = 30_000;
 const SPACE_TOKEN: &str = "space";
@@ -54,7 +54,7 @@ impl Pass<'_> {
             let label = workspace.label();
             let base = naming::strip_prefix(label);
             if !base.is_empty() && base != label {
-                // Heal a "[N] " prefix a label-renaming livery left behind.
+                // Heal a "[N] " prefix a label-renaming Heraldr left behind.
                 let _ = self.client.call(
                     "workspace.rename",
                     json!({ "workspace_id": workspace.workspace_id, "label": base }),
@@ -166,9 +166,9 @@ impl Pass<'_> {
         }
     }
 
-    /// Livery leaves agents alone — the agent panel keeps its own order and
+    /// Heraldr leaves agents alone — the agent panel keeps its own order and
     /// its own jump keybinds, so tab/workspace-style chrome is pure noise
-    /// there. This pass only heals leftovers from a label-renaming livery: a
+    /// there. This pass only heals leftovers from a label-renaming Heraldr: a
     /// "[N] " prefix or a stuck park temp reverts to the bare name.
     fn agents(&self, snapshot: &Snapshot) {
         for agent in &snapshot.agents {

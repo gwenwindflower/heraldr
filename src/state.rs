@@ -1,7 +1,7 @@
 //! The manual-rename opt-out store.
 //!
-//! herdr has no per-tab metadata, so which tabs livery owns is tracked here:
-//! per tab_id, the last base label livery set and whether auto-naming is
+//! Herdr has no per-tab metadata, so which tabs Heraldr owns is tracked here:
+//! per tab_id, the last base label Heraldr set and whether auto-naming is
 //! still enabled. The file lives at a fixed path so one-shot commands and
 //! the watcher share a single store; each pass reloads before use and saves
 //! after, keeping the on-disk copy authoritative between processes.
@@ -28,15 +28,15 @@ pub struct Store {
     dirty: bool,
 }
 
-/// $LIVERY_STATE_DIR overrides the store location (tests).
+/// $HERALDR_STATE_DIR overrides the store location (tests).
 pub fn state_dir() -> PathBuf {
-    if let Some(dir) = std::env::var_os("LIVERY_STATE_DIR") {
+    if let Some(dir) = std::env::var_os("HERALDR_STATE_DIR") {
         return PathBuf::from(dir);
     }
     let state_home = std::env::var_os("XDG_STATE_HOME")
         .map(PathBuf::from)
         .unwrap_or_else(|| home().join(".local/state"));
-    state_home.join("herdr-livery")
+    state_home.join("herdr-heraldr")
 }
 
 impl Store {
@@ -68,7 +68,7 @@ impl Store {
         Ok(())
     }
 
-    /// Record that livery owns a tab and last set this base label.
+    /// Record that Heraldr owns a tab and last set this base label.
     pub fn record(&mut self, tab: &str, auto: &str) {
         let entry = self.tabs.entry(tab.to_string()).or_default();
         if !entry.enabled || entry.auto != auto {
@@ -123,7 +123,7 @@ impl Store {
             // Opted out. Re-adopt only on an explicit clear (empty label); a
             // numeric label is a deliberate name (use reset instead).
             Some(state) if !state.enabled => base.is_empty(),
-            // Owned: keep updating while the base still matches what livery
+            // Owned: keep updating while the base still matches what Heraldr
             // last set; an empty label is the user clearing it back to us.
             Some(state) => {
                 if base == state.auto || base.is_empty() {
@@ -155,7 +155,7 @@ mod tests {
     }
 
     #[test]
-    fn owned_tab_follows_livery_until_renamed() {
+    fn owned_tab_follows_heraldr_until_renamed() {
         let mut s = store();
         s.record("t1", "auto-label");
         assert!(s.eligible("t1", "auto-label"), "unchanged base stays owned");
