@@ -3,8 +3,12 @@ name = "heraldr"
 version = "0.0.1"
 edition = "2024"
 description = "Herdr tab, workspace, and agent chrome: [N] <icon> <name> labels driven by the live session"
+authors = ["Gwyneth Windflower"]
 license = "MIT"
-repository = "https://github.com/supermodellabs/heraldr"
+repository = "https://github.com/gwenwindflower/heraldr"
+readme = "README.md"
+keywords = ["herdr", "plugin", "terminal", "cli"]
+categories = ["command-line-utilities"]
 
 [package.metadata.binstall]
 pkg-url = "{ repo }/releases/download/v{ version }/{ name }-{ target }-v{ version }{ archive-suffix }"

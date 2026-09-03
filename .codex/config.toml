@@ -1,6 +1,1 @@
-#:schema https://developers.openai.com/codex/config-schema.json
-
 sandbox_mode = "workspace-write"
-
-[sandbox_workspace_write]
-writable_roots = ["/Users/winnie/dev/_herdr"]

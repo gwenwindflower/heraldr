@@ -1,1 +1,36 @@
+# Secrets and local config
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+credentials/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs and scratch
+*.log
+tmp/
+dist/
+
+# Local agent state (AGENTS.md and .agents/ stay tracked)
+.claude/settings.local.json
+.claude/.cc-writes/
+.codex/*.local.toml
+.mise.local.toml
+mise.local.toml
+
+# Rust
 /target/

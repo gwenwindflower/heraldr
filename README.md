@@ -1,6 +1,6 @@
 # Heraldr
 
-[![CI](https://github.com/supermodellabs/heraldr/actions/workflows/ci.yml/badge.svg)](https://github.com/supermodellabs/heraldr/actions/workflows/ci.yml)
+[![CI](https://github.com/gwenwindflower/heraldr/actions/workflows/ci.yml/badge.svg)](https://github.com/gwenwindflower/heraldr/actions/workflows/ci.yml)
 
 Heraldr gives [Herdr](https://herdr.dev) tabs and sidebar rows compact, live context:
 
@@ -16,7 +16,7 @@ Heraldr supports Linux and macOS. Its icons require a terminal font with Nerd Fo
 You need [Herdr](https://herdr.dev/docs/install/) 0.7.5 or later, Git, and a compatible [Rust toolchain with Cargo](https://www.rust-lang.org/tools/install). [Cargo Binstall](https://github.com/cargo-bins/cargo-binstall#installation) is optional, but installs a release artifact much faster than compiling from source. Install the plugin:
 
 ```bash
-herdr plugin install supermodellabs/heraldr
+herdr plugin install gwenwindflower/heraldr
 ```
 
 Herdr previews the plugin commands, then the build hook installs the matching Heraldr release on your `PATH`. It tries Cargo Binstall first when available, then compiles from source with Cargo. Plugin events and actions invoke `heraldr` directly; a workspace, tab, or pane event starts the per-session watcher.
@@ -36,7 +36,7 @@ Stop the running watcher, then reinstall the plugin. Its build hook updates the 
 
 ```bash
 herdr plugin action invoke heraldr.clear
-herdr plugin install supermodellabs/heraldr
+herdr plugin install gwenwindflower/heraldr
 ```
 
 The next workspace, tab, or pane event starts the replacement watcher. Herdr refuses to replace a local link with a GitHub install; [switch back to the released plugin](#switch-between-local-and-released-heraldr) first.
@@ -65,9 +65,9 @@ mise trust
 mise install
 ```
 
-That installs Rust, git-cliff, zizmor, pinact, and cargo-binstall at the versions `mise.toml` pins, so your machine and CI run the same tools. Herdr itself is the one prerequisite mise does not manage.
+That installs Rust, git-cliff, zizmor, pinact, shellcheck, and cargo-binstall at the versions `mise.toml` pins, so your machine and CI run the same tools. Herdr itself is the one prerequisite mise does not manage.
 
-`mise tasks` lists every task with its description; `mise tasks info <task>` prints one task's full definition, arguments, and source. Tasks are grouped by prefix — `dev:`, `herdr:`, `test:`, `ci-audit:`, `version:`, `release:` — and the common ones carry single-letter aliases.
+`mise tasks` lists every task with its description; `mise tasks info <task>` prints one task's full definition, arguments, and source. Tasks are grouped by prefix — `dev:`, `herdr:`, `lint:`, `test:`, `ci-audit:`, `version:`, `release:`, `repo:` — and the common ones carry single-letter aliases.
 
 Put the checkout in front of Herdr:
 
@@ -91,7 +91,7 @@ That stops the running watcher, installs the checkout's binary on your `PATH`, a
 
 ## Releases
 
-`Cargo.toml` is the source of truth for Heraldr's version. The release tasks synchronize `Cargo.lock` and `herdr-plugin.toml`, validate the repository, and keep release notes in the GitHub Release rather than a separate changelog file.
+`Cargo.toml` is the source of truth for Heraldr's version. `version:write` synchronizes `Cargo.lock` and `herdr-plugin.toml` to it, `version:check` reports drift, and release notes live in the GitHub Release rather than a separate changelog file.
 
 Releases run from a clean local `main` with `gh` already authenticated. All tags are `vMAJOR.MINOR.PATCH`. The policy in `cliff.toml` begins at `v0.0.1`, keeps `0.0.x` releases on patch bumps, and does not promote the project to `0.1.0` or `1.0.0` automatically.
 
@@ -100,3 +100,11 @@ Releases run from a clean local `main` with `gh` already authenticated. All tags
 GitHub creates the tag at the default-branch head when it publishes the release. Do not create or push a separate tag. The `Release build` workflow then verifies the tag against Cargo, builds each supported target, and attaches archives and checksums. `mise run release:verify` inspects the result.
 
 Rerun failed release jobs from their original event so they retain permission to upload assets: `gh run rerun <run-id> --failed`. To rebuild an existing tag for diagnosis without changing the release, run `gh workflow run release-build.yml -f tag=vX.Y.Z` — it keeps outputs as workflow artifacts.
+
+## Issues vs. Discussions
+
+Discussions are for ideas, questions, and "what if Heraldr did X?". Issues are for concrete, reproducible change requests: a bug with a repro, a missing option with a clear shape, a doc inaccuracy. Start in Discussions if you're not sure.
+
+## License
+
+MIT. See [LICENSE](./LICENSE).

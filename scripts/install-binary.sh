@@ -2,7 +2,7 @@
 
 set -eu
 
-install_docs=https://github.com/supermodellabs/heraldr#install
+install_docs=https://github.com/gwenwindflower/heraldr#install
 if ! command -v cargo >/dev/null 2>&1; then
 	printf 'Cargo is required to install Heraldr. Install it before continuing: %s\n' "$install_docs" >&2
 	exit 1
