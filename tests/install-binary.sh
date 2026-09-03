@@ -94,14 +94,14 @@ write_cargo "$install_root"
 write_binstall "$install_root"
 run_installer "$install_root"
 [[ "$(<"$install_root/install.log")" == 'heraldr --manifest-path Cargo.toml --strategies crate-meta-data --locked --force --no-confirm' ]]
-[[ "$($install_root/fakebin/heraldr --version)" == 'heraldr 0.0.1' ]]
+[[ "$("$install_root"/fakebin/heraldr --version)" == 'heraldr 0.0.1' ]]
 [[ ! -e "$install_root/target/release/heraldr" ]]
 
 source_root="$(make_case source)"
 write_cargo "$source_root"
 run_installer "$source_root" >"$source_root/output.log" 2>&1
 [[ "$(<"$source_root/install.log")" == 'install --path . --locked --force' ]]
-rg -q 'Cargo Binstall.*https://github.com/supermodellabs/heraldr#install' "$source_root/output.log"
+rg -q 'Cargo Binstall.*https://github.com/gwenwindflower/heraldr#install' "$source_root/output.log"
 
 fallback_root="$(make_case fallback)"
 write_cargo "$fallback_root"
@@ -114,6 +114,6 @@ if (cd "$missing_cargo_root" && PATH="$missing_cargo_root/fakebin" ./scripts/ins
 	printf 'Installer succeeded without Cargo.\n' >&2
 	exit 1
 fi
-rg -q 'Cargo.*https://github.com/supermodellabs/heraldr#install' "$missing_cargo_root/output.log"
+rg -q 'Cargo.*https://github.com/gwenwindflower/heraldr#install' "$missing_cargo_root/output.log"
 
 printf 'Binary installer tests passed.\n'

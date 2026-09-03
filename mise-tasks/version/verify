@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+#MISE description="Fail when Cargo.lock or herdr-plugin.toml disagree with Cargo.toml"
+#MISE quiet=true
+
+set -euo pipefail
+cd "${MISE_PROJECT_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+
+declared="$(mise-tasks/version/read)"
+locked="$(awk '
+  /^\[\[package\]\]$/ { heraldr = 0; next }
+  /^name = "heraldr"$/ { heraldr = 1; next }
+  heraldr && /^version = / { sub(/^[^"]*"/, ""); sub(/".*$/, ""); print; exit }
+' Cargo.lock)"
+manifest="$(awk '
+  /^\[/ { exit }
+  /^version = / { sub(/^[^"]*"/, ""); sub(/".*$/, ""); print; exit }
+' herdr-plugin.toml)"
+
+drift=0
+if [[ "$locked" != "$declared" ]]; then
+	printf 'Cargo.lock records %s; Cargo.toml declares %s.\n' "${locked:-nothing}" "$declared" >&2
+	drift=1
+fi
+if [[ "$manifest" != "$declared" ]]; then
+	printf 'herdr-plugin.toml declares %s; Cargo.toml declares %s.\n' "${manifest:-nothing}" "$declared" >&2
+	drift=1
+fi
+exit "$drift"

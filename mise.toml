@@ -1,28 +1,41 @@
 [tools]
-rust = { version = "stable", profile = "minimal", components = ["clippy", "rustfmt"] }
-cargo-binstall = "latest"
-git-cliff = "latest"
-pinact = "latest"
-zizmor = "latest"
+git-cliff = "2.14.1"
+pinact = "4.1.1"
+zizmor = "1.30.0"
+shellcheck = "0.11.0"
+rust = { version = "1.98.0", profile = "minimal", components = ["clippy", "rustfmt"] }
+cargo-binstall = "1.22.0"
 
 # Rust
 
 [tasks.build]
-description = "Compile an optimized binary into target/release"
+description = "Compile the optimized binary into dist/bin"
 alias = "b"
-run = "cargo build --locked --release"
+run = [
+  "cargo build --locked --release",
+  "mkdir -p dist/bin",
+  "cp target/release/heraldr dist/bin/heraldr",
+]
 
 [tasks.install]
 description = "Install the checkout's binary on your PATH"
-run = "cargo install --path . --locked"
+run = "cargo install --path . --locked --force"
 
 [tasks.fmt]
+description = "Rewrite every file to the rustfmt style"
+run = "cargo fmt --all"
+
+[tasks."lint:fmt"]
 description = "Verify formatting without rewriting files"
 run = "cargo fmt --all --check"
 
-[tasks.clippy]
+[tasks."lint:clippy"]
 description = "Lint every target and feature, treating warnings as errors"
 run = "cargo clippy --all-targets --all-features --locked -- -D warnings"
+
+[tasks."test:rust"]
+description = "Run the Rust test suite"
+run = "cargo test --all-features --locked"
 
 # Herdr
 
@@ -36,7 +49,7 @@ run = "herdr plugin unlink heraldr"
 
 [tasks."herdr:install"]
 description = "Install the published plugin from GitHub"
-run = "herdr plugin install supermodellabs/heraldr"
+run = "herdr plugin install gwenwindflower/heraldr"
 
 [tasks."herdr:uninstall"]
 description = "Remove the plugin from Herdr, leaving Heraldr's user config in place"
@@ -74,15 +87,11 @@ description = "Replace the checkout with the published plugin, as a user receive
 run = [
   "mise run herdr:clear",
   "mise run herdr:unlink",
-  "cargo binstall heraldr --git https://github.com/supermodellabs/heraldr",
+  "cargo binstall heraldr --git https://github.com/gwenwindflower/heraldr",
   "mise run herdr:install",
 ]
 
 # Tests
-
-[tasks."test:rust"]
-description = "Run the Rust test suite"
-run = "cargo test --all-features --locked"
 
 [tasks."test:manifest"]
 description = "Validate the plugin manifest"
@@ -101,14 +110,18 @@ run = "./tests/versioning.sh"
 [tasks.test]
 description = "Run every test suite"
 alias = "t"
-depends = ["test:rust", "test:manifest", "test:installer", "test:versioning"]
+depends = ["test:*"]
 
 # Checks
+
+[tasks."lint:shell"]
+description = "Lint every task script and test with shellcheck"
+run = "shellcheck --shell=bash --format=gcc mise-tasks/*/* tests/*.sh"
 
 [tasks.check]
 description = "Run every check CI runs"
 alias = "c"
-depends = ["fmt", "clippy", "version:check", "test"]
+depends = ["lint:*", "version:check", "test:*"]
 
 [tasks."ci-audit:zizmor"]
 description = "Audit the GitHub Actions workflows for security issues"
