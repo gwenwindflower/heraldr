@@ -65,7 +65,7 @@ mise trust
 mise install
 ```
 
-That installs Rust, git-cliff, zizmor, pinact, shellcheck, prek, rumdl, and cargo-binstall, each at its newest release, so your machine and CI run the same tools. Herdr itself is the one prerequisite mise does not manage.
+That installs the linters and release tooling `mise.toml` declares, so your machine and CI run the same tools. Rust comes from rustup on your `PATH`; `rust-toolchain.toml` selects stable with clippy and rustfmt. Herdr itself is the other prerequisite mise does not manage.
 
 Already have some of those on your `PATH`? Copy `mise.local.toml.example` to `mise.local.toml` (gitignored) and list them under `disable_tools`. mise then skips installing them here and tasks use whatever `command -v` finds; CI installs whatever `mise.toml` resolves, so keep yours current.
 
