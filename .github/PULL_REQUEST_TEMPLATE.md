@@ -1,4 +1,4 @@
-<!-- markdownlint-disable MD041 -->
+<!-- markdownlint-disable MD041 MD057 -->
 <!--
   Thanks for the PR! A few quick notes:
 

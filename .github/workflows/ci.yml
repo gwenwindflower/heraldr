@@ -26,8 +26,13 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Rotate the toolchain cache weekly
+        run: echo "MISE_CACHE_WEEK=$(date +%G-%V)" >> "$GITHUB_ENV"
+
       - name: Install toolchain
         uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          cache_key: "{{default}}-{{env.MISE_CACHE_WEEK}}"
 
       - name: Register problem matchers
         run: |
@@ -56,8 +61,13 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Rotate the toolchain cache weekly
+        run: echo "MISE_CACHE_WEEK=$(date +%G-%V)" >> "$GITHUB_ENV"
+
       - name: Install toolchain
         uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          cache_key: "{{default}}-{{env.MISE_CACHE_WEEK}}"
 
       - name: Register problem matchers
         run: |
@@ -78,8 +88,13 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Rotate the toolchain cache weekly
+        run: echo "MISE_CACHE_WEEK=$(date +%G-%V)" >> "$GITHUB_ENV"
+
       - name: Install toolchain
         uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          cache_key: "{{default}}-{{env.MISE_CACHE_WEEK}}"
 
       - name: Audit with zizmor
         env:

@@ -20,14 +20,10 @@ hooks = [
 ]
 
 [[repos]]
-repo = "https://github.com/DavidAnson/markdownlint-cli2"
-rev = "v0.23.2"
-hooks = [{ id = "markdownlint-cli2" }]
-
-[[repos]]
 repo = "local"
 hooks = [
   { id = "shellcheck", name = "shellcheck", language = "system", entry = "shellcheck --format=gcc", types = ["shell"] },
+  { id = "rumdl", name = "rumdl", language = "system", entry = "rumdl check --no-cache", types = ["markdown"] },
   { id = "zizmor", name = "zizmor", language = "system", entry = "zizmor", files = "^\\.github/workflows/.*\\.ya?ml$" },
   { id = "conventional-commit", name = "conventional commit subject", language = "script", entry = "scripts/check-commit-message", stages = ["commit-msg"] },
   { id = "rustfmt", name = "rustfmt", language = "system", entry = "rustfmt --edition 2024", types = ["rust"] },

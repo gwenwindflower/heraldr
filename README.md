@@ -65,9 +65,9 @@ mise trust
 mise install
 ```
 
-That installs Rust, git-cliff, zizmor, pinact, shellcheck, and cargo-binstall at the versions `mise.toml` pins, so your machine and CI run the same tools. Herdr itself is the one prerequisite mise does not manage.
+That installs Rust, git-cliff, zizmor, pinact, shellcheck, prek, rumdl, and cargo-binstall, each at its newest release, so your machine and CI run the same tools. Herdr itself is the one prerequisite mise does not manage.
 
-Already have some of those on your `PATH`? Copy `mise.local.toml.example` to `mise.local.toml` (gitignored) and list them under `disable_tools`. mise then skips installing them here and tasks use whatever `command -v` finds; CI still installs the pinned versions, so keep yours close.
+Already have some of those on your `PATH`? Copy `mise.local.toml.example` to `mise.local.toml` (gitignored) and list them under `disable_tools`. mise then skips installing them here and tasks use whatever `command -v` finds; CI installs whatever `mise.toml` resolves, so keep yours current.
 
 `mise tasks` lists every task with its description; `mise tasks info <task>` prints one task's full definition, arguments, and source. Tasks are grouped by prefix — `dev:`, `herdr:`, `lint:`, `test:`, `ci-audit:`, `version:`, `release:`, `repo:` — and the common ones carry single-letter aliases.
 

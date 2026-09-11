@@ -1,7 +1,7 @@
-# Copy to mise.local.toml (gitignored) and list the project tools already on your PATH.
+# Copy to mise.local.toml (gitignored) and keep the tools already on your PATH.
 # mise drops them from this directory only: `mise install` skips them, tasks use whatever
-# `command -v` finds, and CI still installs the pins in mise.toml. `mise doctor` shows the
-# list mise is honoring. `disable_tools` also hides a same-named tool from your global config.
+# `command -v` finds, and CI still installs everything mise.toml declares. `mise doctor`
+# shows the list mise is honoring. `disable_tools` also hides a same-named global tool here.
 
 [settings]
-disable_tools = ["prek", "rust"]
+disable_tools = ["git-cliff", "pinact", "zizmor", "shellcheck", "prek", "rumdl", "rust", "cargo-binstall"]

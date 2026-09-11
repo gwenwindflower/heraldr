@@ -1,10 +1,10 @@
 {
   "problemMatcher": [
     {
-      "owner": "markdownlint-cli2",
+      "owner": "rumdl",
       "pattern": [
         {
-          "regexp": "^([^:\\s]+):(\\d+)(?::(\\d+))?\\s+(MD\\d+/[\\w-]+)\\s+(.*)$",
+          "regexp": "^([^:\\s]+):(\\d+):(\\d+): \\[(MD\\d+)\\] (.*)$",
           "file": 1,
           "line": 2,
           "column": 3,

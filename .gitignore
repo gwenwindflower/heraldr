@@ -34,3 +34,4 @@ mise.local.toml
 
 # Rust
 /target/
+.rumdl_cache/
