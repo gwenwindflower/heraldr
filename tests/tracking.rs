@@ -11,6 +11,7 @@ use serde_json::{Value, json};
 
 #[derive(Default)]
 struct Session {
+    tab_id: String,
     label: String,
     program: String,
     inspection_fails: bool,
@@ -22,6 +23,7 @@ struct Session {
 
 struct Herdr {
     root: PathBuf,
+    state_root: PathBuf,
     session: Arc<Mutex<Session>>,
     stopped: Arc<AtomicBool>,
     server: Option<JoinHandle<()>>,
@@ -40,6 +42,7 @@ impl Herdr {
         let listener = UnixListener::bind(root.join("herdr.sock")).unwrap();
         listener.set_nonblocking(true).unwrap();
         let session = Arc::new(Mutex::new(Session {
+            tab_id: "w1:t1".into(),
             label: "1".into(),
             program: "lazygit".into(),
             ..Session::default()
@@ -70,11 +73,11 @@ impl Herdr {
                 let result = match method {
                     "events.subscribe" => json!({}),
                     "session.snapshot" => json!({ "snapshot": {
-                        "focused_tab_id": "w1:t1", "focused_pane_id": "w1:p1",
+                        "focused_tab_id": session.tab_id, "focused_pane_id": "w1:p1",
                         "workspaces": [{ "workspace_id": "w1", "label": "project" }],
-                        "tabs": [{ "workspace_id": "w1", "tab_id": "w1:t1",
+                        "tabs": [{ "workspace_id": "w1", "tab_id": session.tab_id,
                             "label": session.label, "pane_count": 1, "focused": true }],
-                        "panes": [{ "workspace_id": "w1", "tab_id": "w1:t1",
+                        "panes": [{ "workspace_id": "w1", "tab_id": session.tab_id,
                             "pane_id": "w1:p1", "focused": true }]
                     }}),
                     "pane.process_info" => {
@@ -94,7 +97,7 @@ impl Herdr {
                         if !session.rename_fails {
                             session.label = request["params"]["label"].as_str().unwrap().into();
                         }
-                        json!({ "tab": { "tab_id": "w1:t1", "label": session.label } })
+                        json!({ "tab": { "tab_id": session.tab_id, "label": session.label } })
                     }
                     "workspace.report_metadata" | "pane.report_metadata" => json!({}),
                     other => panic!("unexpected method: {other}"),
@@ -113,6 +116,7 @@ impl Herdr {
             }
         });
         Self {
+            state_root: root.join("state"),
             root,
             session,
             stopped,
@@ -126,13 +130,27 @@ impl Herdr {
         command
             .arg(subcommand)
             .env("HERDR_SOCKET_PATH", self.root.join("herdr.sock"))
-            .env("HERALDR_STATE_DIR", self.root.join("state"))
+            .env("HERALDR_STATE_DIR", &self.state_root)
             .env("HERDR_PLUGIN_ROOT", env!("CARGO_MANIFEST_DIR"));
         command
     }
 
     fn reconcile(&self) {
         let output = self.command("reconcile").output().unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    fn reset(&self) {
+        let tab_id = self.session.lock().unwrap().tab_id.clone();
+        let output = self
+            .command("reset")
+            .env("HERDR_TAB_ID", tab_id)
+            .output()
+            .unwrap();
         assert!(
             output.status.success(),
             "{}",
@@ -284,4 +302,133 @@ fn manual_name_survives_process_transitions() {
         herdr.reconcile();
         assert_eq!(herdr.label(), "[1] release work");
     }
+}
+
+#[test]
+fn sessions_with_matching_tab_ids_keep_independent_ownership() {
+    let first = Herdr::start();
+    let mut second = Herdr::start();
+    second.state_root = first.state_root.clone();
+    first.reconcile();
+    second.change(|session| session.program = "nvim".into());
+    second.reconcile();
+    assert!(second.label().ends_with(" nvim"));
+    assert!(first.label().ends_with(" lazygit"));
+
+    second.change(|session| session.label = "[1] release work".into());
+    second.reconcile();
+    first.change(|session| session.program = "fish".into());
+    first.reconcile();
+    assert!(first.label().ends_with(" fish"));
+    second.reconcile();
+    assert_eq!(second.label(), "[1] release work");
+}
+
+#[test]
+fn shared_ownership_is_preserved_without_cross_session_writes() {
+    let first = Herdr::start();
+    let mut second = Herdr::start();
+    second.state_root = first.state_root.clone();
+    std::fs::create_dir_all(&first.state_root).unwrap();
+    let shared = first.state_root.join("state.json");
+    let label = "[1] G lazygit";
+    let record = json!({"w1:t1": {"auto": "G lazygit", "enabled": true}}).to_string();
+    std::fs::write(&shared, &record).unwrap();
+    first.change(|session| {
+        session.label = label.into();
+        session.program = "fish".into();
+    });
+    first.reconcile();
+    assert!(first.label().ends_with(" fish"));
+    assert_eq!(std::fs::read_to_string(&shared).unwrap(), record);
+
+    second.change(|session| {
+        session.label = label.into();
+        session.program = "nvim".into();
+    });
+    second.reconcile();
+    assert!(second.label().ends_with(" nvim"));
+    first.change(|session| session.program = "yazi".into());
+    first.reconcile();
+    assert!(first.label().ends_with(" yazi"));
+    assert_eq!(std::fs::read_to_string(&shared).unwrap(), record);
+}
+
+#[test]
+fn another_session_cannot_prune_a_running_tabs_ownership() {
+    let first = Herdr::start();
+    let mut second = Herdr::start();
+    second.state_root = first.state_root.clone();
+    first.change(|session| session.tab_id = "w1X:t9".into());
+    first.reconcile();
+    assert!(first.label().ends_with(" lazygit"));
+
+    second.reconcile();
+    for program in ["1Password", "lazygit", "fish", "yazi"] {
+        first.change(|session| session.program = program.into());
+        first.reconcile();
+        let expected = if program == "1Password" {
+            "fish"
+        } else {
+            program
+        };
+        assert!(first.label().ends_with(&format!(" {expected}")));
+        second.reconcile();
+    }
+}
+
+#[test]
+fn simultaneous_watchers_follow_their_own_foreground_programs() {
+    let mut first = Herdr::start();
+    let mut second = Herdr::start();
+    second.state_root = first.state_root.clone();
+    first.watch();
+    second.watch();
+    first.follows("fish");
+    second.follows("nvim");
+    first.follows("yazi");
+    second.follows("fish");
+    first.follows("lazygit");
+}
+
+#[test]
+fn shared_manual_opt_out_survives_session_initialization() {
+    let herdr = Herdr::start();
+    std::fs::create_dir_all(&herdr.state_root).unwrap();
+    let shared = herdr.state_root.join("state.json");
+    let record = json!({"w1:t1": {"auto": "", "enabled": false}}).to_string();
+    std::fs::write(&shared, &record).unwrap();
+    herdr.change(|session| session.label = "[1] release work".into());
+    herdr.reconcile();
+    herdr.change(|session| session.program = "yazi".into());
+    herdr.reconcile();
+    assert_eq!(herdr.label(), "[1] release work");
+    assert_eq!(std::fs::read_to_string(shared).unwrap(), record);
+}
+
+#[test]
+fn reset_recovers_a_disabled_tab_while_another_session_reconciles() {
+    let first = Herdr::start();
+    let mut second = Herdr::start();
+    second.state_root = first.state_root.clone();
+    std::fs::create_dir_all(&first.state_root).unwrap();
+    std::fs::write(
+        first.state_root.join("state.json"),
+        json!({"w1X:t9": {"auto": "", "enabled": false}}).to_string(),
+    )
+    .unwrap();
+    first.change(|session| {
+        session.tab_id = "w1X:t9".into();
+        session.label = "[1] G lazygit".into();
+        session.program = "fish".into();
+    });
+    first.reconcile();
+    assert_eq!(first.label(), "[1] G lazygit");
+    second.reconcile();
+    first.reset();
+    assert!(first.label().ends_with(" fish"));
+    second.reconcile();
+    first.change(|session| session.program = "yazi".into());
+    first.reconcile();
+    assert!(first.label().ends_with(" yazi"));
 }

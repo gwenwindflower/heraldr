@@ -7,9 +7,7 @@
 //! events all run `heraldr kick`, which spawns a watcher if none holds the
 //! session's pidfile lock, so any activity resurrects a dead daemon.
 
-use std::collections::hash_map::DefaultHasher;
 use std::fs::{File, OpenOptions};
-use std::hash::{Hash, Hasher};
 use std::io::{BufRead, Write};
 use std::os::fd::AsRawFd;
 use std::path::PathBuf;
@@ -23,7 +21,7 @@ use crate::naming::{self, Icons};
 use crate::reconcile::Pass;
 use crate::rpc::Client;
 use crate::snapshot::{Snapshot, foreground_program};
-use crate::state::{Store, state_dir};
+use crate::state::{Store, session_key, state_dir};
 
 /// Everything that can change a label or a position. The subscription surface
 /// is a superset of what plugin [[events]] deliver — pane.updated and
@@ -133,7 +131,7 @@ fn full_pass(client: &Client) -> Result<()> {
     // Reload the manifest and the store each pass: icons.conf edits apply
     // live, and one-shot commands (reset, clear) share the store on disk.
     let icons = Icons::load(&plugin_root().join("icons.conf"));
-    let mut state = Store::load();
+    let mut state = Store::load(client);
     Pass {
         client,
         icons: &icons,
@@ -159,7 +157,7 @@ fn focused_pass(client: &Client) -> Result<()> {
         return Ok(());
     };
     let icons = Icons::load(&plugin_root().join("icons.conf"));
-    let mut state = Store::load();
+    let mut state = Store::load(client);
     let label = tab.label();
     let stripped = naming::strip_prefix(label);
     if !state.eligible(&tab.tab_id, stripped) {
@@ -223,9 +221,7 @@ pub struct PidLock {
 
 impl PidLock {
     fn path(client: &Client) -> PathBuf {
-        let mut hasher = DefaultHasher::new();
-        client.socket_path().hash(&mut hasher);
-        state_dir().join(format!("watch-{:016x}.pid", hasher.finish()))
+        state_dir().join(format!("watch-{:016x}.pid", session_key(client)))
     }
 
     pub fn acquire(client: &Client) -> Result<Option<Self>> {

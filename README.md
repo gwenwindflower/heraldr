@@ -79,7 +79,7 @@ mise run dev:reload
 
 That stops the running watcher, installs the checkout's binary on your `PATH`, and links its manifest. The link points directly at the checkout, so `herdr-plugin.toml` and `icons.conf` stay local. `icons.conf` edits apply live; the binary carries the same map as a fallback when the checkout is unavailable. Rerun `dev:reload` after Rust changes.
 
-`mise run dev` is the whole loop: every check and test, then a fresh build linked into Herdr.
+`mise run dev` runs local checks and tests, then installs a fresh build from this checkout with `cargo install --path .` and links it into Herdr. Local linking does not run the manifest's release installer or Cargo Binstall.
 
 ### Switch between local and released Heraldr
 
@@ -91,14 +91,16 @@ That stops the running watcher, installs the checkout's binary on your `PATH`, a
 
 `mise run check` is the full local gate. CI installs mise and runs these same tasks, so a task definition is the only place a check lives.
 
+`wt merge` runs one gate after rebasing onto the target: `check` for a feature branch, or `release:check` (local checks plus workflow audits) for the default branch. Commit hooks still check staged files. These gates use plain Cargo output and never install Heraldr on your `PATH`; installer tests simulate Cargo and Binstall inside temporary directories.
+
 ### Pretty tasks
 
 There are local interactive development versions of the build and test tasks that use [cargo-pretty](https://github.com/romancitodev/cargo-pretty) for rich output. You'll need to install cargo pretty for them to work (`cargo binstall cargo-pretty-build`).
 
 ```bash
-mise run build:pretty
+mise run dev:build
 mise run b
-mise run test:pretty
+mise run dev:test
 mise run t
 ```
 

@@ -23,7 +23,7 @@
 
 ## Phase 2: Tab tracking recovery 🌀
 
-**Requirements**: nm-R001, nm-R002, nm-R003, nm-R004
+**Requirements**: nm-R001, nm-R002, nm-R003, nm-R004, nm-R005, nm-R006
 
 ### Automatic naming across process interruptions
 
@@ -31,4 +31,11 @@
 - [x] Preserve ownership and keep polling across temporary failures
 - [x] Verify recovery through lazygit, credential helpers, the shell, and subsequent programs while respecting manual names
 - [ ] #user Run `mise run check` outside the agent sandbox; the manifest's nested sandbox and the hook sweep of `.codex/config.toml` are blocked inside it
-- [ ] #user Run `mise run dev:reload`, reset an affected tab with `mise run herdr:reset`, and verify the in-tab lazygit biometric-auth flow
+- [x] #user Run `mise run dev:reload`, reset an affected tab with `mise run herdr:reset`, and verify in-tab lazygit and subsequent program tracking
+
+### Session ownership isolation
+
+- [x] Trace the affected tab's ownership record across concurrent session passes
+- [x] Isolate ownership by session socket while preserving shared-format records
+- [x] Verify independent naming with matching tab IDs and cross-session pruning
+- [x] Verify two running watchers and run the Rust checks

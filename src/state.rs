@@ -2,18 +2,19 @@
 //!
 //! Herdr has no per-tab metadata, so which tabs Heraldr owns is tracked here:
 //! per tab_id, the last base label Heraldr set and whether auto-naming is
-//! still enabled. The file lives at a fixed path so one-shot commands and
-//! the watcher share a single store; each pass reloads before use and saves
-//! after, keeping the on-disk copy authoritative between processes.
+//! still enabled. Each session's watcher and one-shot commands share a
+//! socket-keyed store; other sessions cannot overwrite or prune its tabs.
 
+use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
+use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 use crate::naming::is_placeholder;
-use crate::rpc::home;
+use crate::rpc::{Client, home};
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct TabState {
@@ -39,18 +40,31 @@ pub fn state_dir() -> PathBuf {
     state_home.join("herdr-heraldr")
 }
 
+pub fn session_key(client: &Client) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    client.socket_path().hash(&mut hasher);
+    hasher.finish()
+}
+
 impl Store {
-    /// A missing or corrupt file yields an empty store.
-    pub fn load() -> Self {
-        let path = state_dir().join("state.json");
-        let tabs = std::fs::read_to_string(&path)
-            .ok()
+    /// Absent session files inherit shared-format ownership without changing it.
+    pub fn load(client: &Client) -> Self {
+        let path = state_dir().join(format!("state-{:016x}.json", session_key(client)));
+        let (text, initialize) = match std::fs::read_to_string(&path) {
+            Ok(text) => (Some(text), false),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => (
+                std::fs::read_to_string(state_dir().join("state.json")).ok(),
+                true,
+            ),
+            Err(_) => (None, false),
+        };
+        let tabs = text
             .and_then(|text| serde_json::from_str(&text).ok())
             .unwrap_or_default();
         Self {
             path,
             tabs,
-            dirty: false,
+            dirty: initialize,
         }
     }
 

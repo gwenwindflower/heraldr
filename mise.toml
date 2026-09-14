@@ -10,17 +10,16 @@ cargo-binstall = "latest"
 # Rust
 [tasks.build]
 description = "Compile the optimized binary into dist/bin"
-alias = "b"
 run = [
   "cargo build --locked --release",
   "mkdir -p dist/bin",
   "cp target/release/heraldr dist/bin/heraldr",
 ]
 
-[tasks."build:pretty"]
+[tasks."dev:build"]
 description = "Run standard build with pretty interactive output"
 alias = "b"
-run = "cargo pretty build"
+run = "cargo pretty build --locked"
 raw = true
 
 [tasks.install]
@@ -39,7 +38,7 @@ run = "cargo clippy --all-targets --all-features --locked -- -D warnings"
 description = "Run the Rust test suite"
 run = "cargo test --all-features --locked"
 
-[tasks."test:pretty"]
+[tasks."dev:test"]
 description = "Run the Rust tests with pretty interactive output"
 alias = "t"
 run = "cargo pretty test --all-features --locked"
@@ -107,16 +106,19 @@ deny_net = true
 deny_write = true
 
 [tasks."test:installer"]
-description = "Exercise the plugin's install script"
+description = "Test the installer with fake Cargo/Binstall in temporary directories; no downloads"
 run = "./tests/install-binary.sh"
 
 [tasks."test:versioning"]
 description = "Exercise the version tasks against sandbox repositories"
 run = "./tests/versioning.sh"
 
+[tasks."test:workflows"]
+description = "Verify automated gates select noninteractive tests without installing Heraldr"
+run = "./tests/task-workflows.sh"
+
 [tasks.test]
 description = "Run every test suite"
-alias = "t"
 depends = ["test:*"]
 
 # Checks
@@ -130,7 +132,7 @@ description = "Install the prek commit and commit-msg hooks into this clone"
 run = "prek install --hook-type pre-commit --hook-type commit-msg"
 
 [tasks.check]
-description = "Run every check CI runs"
+description = "Run local lint, version checks, and noninteractive test suites"
 alias = "c"
 depends = ["lint:*", "version:check", "test:*"]
 

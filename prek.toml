@@ -1,6 +1,8 @@
 # Hooks that run on every commit, scoped to the staged files. Whole-repo checks are mise tasks;
 # `mise run lint:hooks` runs these same hooks across the tree, and CI runs it too.
 
+default_stages = ["pre-commit"]
+
 [[repos]]
 repo = "builtin"
 hooks = [

@@ -20,7 +20,9 @@ Never run `release`, `release:push`, or `release:create`. They push commits and 
 
 ## Hooks guard commits, tasks guard merges
 
-prek runs file hygiene on every commit (staged files only) and rejects commit subjects git-cliff cannot parse; `mise run hooks:install` wires it into a fresh clone. `wt merge` runs `lint:*` before the squash and `release:check` after the rebase. Never commit with `--no-verify`; fix what the hook reports.
+prek runs file hygiene on every commit (staged files only) and rejects commit subjects git-cliff cannot parse; `mise run hooks:install` wires it into a fresh clone. `wt merge` runs one gate after the rebase: `release:check` when its target is Worktrunk's default branch, otherwise `check`. Never commit with `--no-verify`; fix what the hook reports.
+
+Interactive Cargo tasks live under `dev:`; `test:*` is safe for unattended gates and CI. Installer tests use fake Cargo/Binstall in temporary directories. Local reloads use `cargo install --path .` and `herdr plugin link`, which does not execute manifest build hooks.
 
 ## Workflow changes
 

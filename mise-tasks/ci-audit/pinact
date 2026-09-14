@@ -4,14 +4,8 @@
 set -euo pipefail
 cd "${MISE_PROJECT_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 
-# pinact resolves every pinned SHA through the GitHub API. Anonymous callers share 60 requests
-# an hour per machine, which a handful of runs exhausts, so borrow whatever credentials exist.
-if [[ -z "${GITHUB_TOKEN:-}" ]] && command -v gh >/dev/null 2>&1; then
-	GITHUB_TOKEN="$(gh auth token 2>/dev/null || true)"
-	export GITHUB_TOKEN
-fi
 if [[ -z "${GITHUB_TOKEN:-}" ]]; then
-	printf 'Running unauthenticated; GitHub allows 60 API calls an hour. Authenticate gh or set GITHUB_TOKEN if this rate limits.\n' >&2
+	printf 'Running unauthenticated; GitHub allows 60 API calls an hour. Set GITHUB_TOKEN if this rate limits.\n' >&2
 fi
 
 pinact run --check --verify-comment

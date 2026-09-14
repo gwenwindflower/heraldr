@@ -89,7 +89,7 @@ fn main() -> Result<()> {
 fn one_shot(clear: bool, force_tab: Option<&str>) -> Result<()> {
     let client = Client::from_env();
     let icons = Icons::load(&plugin_root().join("icons.conf"));
-    let mut state = Store::load();
+    let mut state = Store::load(&client);
     Pass {
         client: &client,
         icons: &icons,
@@ -150,6 +150,6 @@ fn status() -> Result<()> {
     } else {
         println!("icons    {} rows from {}", icons.len(), icon_path.display());
     }
-    println!("state    {} tabs tracked", Store::load().len());
+    println!("state    {} tabs tracked", Store::load(&client).len());
     Ok(())
 }

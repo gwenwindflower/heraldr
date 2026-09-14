@@ -6,6 +6,18 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 sandbox="$(mktemp -d "${TMPDIR:-/tmp}/heraldr-installer.XXXXXX")"
 trap 'rm -rf "$sandbox"' EXIT
 
+printf 'Installer tests use fake Cargo/Binstall in temporary directories; no downloads or user PATH installs.\n'
+
+report_failure() {
+	printf 'Installer test failed. Captured output:\n' >&2
+	for output in "$sandbox"/*/output.log; do
+		[[ -f "$output" ]] || continue
+		printf '\n%s\n' "$output" >&2
+		cat "$output" >&2
+	done
+}
+trap report_failure ERR
+
 make_case() {
 	local name="$1"
 	local root="$sandbox/$name"
@@ -86,13 +98,13 @@ current_root="$(make_case current)"
 write_cargo "$current_root"
 write_heraldr "$current_root/fakebin/heraldr" 0.0.1
 write_binstall "$current_root"
-run_installer "$current_root"
+run_installer "$current_root" >"$current_root/output.log" 2>&1
 [[ ! -s "$current_root/install.log" ]]
 
 install_root="$(make_case install)"
 write_cargo "$install_root"
 write_binstall "$install_root"
-run_installer "$install_root"
+run_installer "$install_root" >"$install_root/output.log" 2>&1
 [[ "$(<"$install_root/install.log")" == 'heraldr --manifest-path Cargo.toml --strategies crate-meta-data --locked --force --no-confirm' ]]
 [[ "$("$install_root"/fakebin/heraldr --version)" == 'heraldr 0.0.1' ]]
 [[ ! -e "$install_root/target/release/heraldr" ]]
