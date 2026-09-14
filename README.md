@@ -91,6 +91,17 @@ That stops the running watcher, installs the checkout's binary on your `PATH`, a
 
 `mise run check` is the full local gate. CI installs mise and runs these same tasks, so a task definition is the only place a check lives.
 
+### Pretty tasks
+
+There are local interactive development versions of the build and test tasks that use [cargo-pretty](https://github.com/romancitodev/cargo-pretty) for rich output. You'll need to install cargo pretty for them to work (`cargo binstall cargo-pretty-build`).
+
+```bash
+mise run build:pretty
+mise run b
+mise run test:pretty
+mise run t
+```
+
 ## Releases
 
 `Cargo.toml` is the source of truth for Heraldr's version. `version:write` synchronizes `Cargo.lock` and `herdr-plugin.toml` to it, `version:check` reports drift, and release notes live in the GitHub Release rather than a separate changelog file.

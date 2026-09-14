@@ -8,7 +8,6 @@ rumdl = "latest"
 cargo-binstall = "latest"
 
 # Rust
-
 [tasks.build]
 description = "Compile the optimized binary into dist/bin"
 alias = "b"
@@ -17,6 +16,12 @@ run = [
   "mkdir -p dist/bin",
   "cp target/release/heraldr dist/bin/heraldr",
 ]
+
+[tasks."build:pretty"]
+description = "Run standard build with pretty interactive output"
+alias = "b"
+run = "cargo pretty build"
+raw = true
 
 [tasks.install]
 description = "Install the checkout's binary on your PATH"
@@ -34,8 +39,13 @@ run = "cargo clippy --all-targets --all-features --locked -- -D warnings"
 description = "Run the Rust test suite"
 run = "cargo test --all-features --locked"
 
-# Herdr
+[tasks."test:pretty"]
+description = "Run the Rust tests with pretty interactive output"
+alias = "t"
+run = "cargo pretty test --all-features --locked"
+raw = true
 
+# Herdr
 [tasks."herdr:link"]
 description = "Point Herdr at the checkout, keeping herdr-plugin.toml and icons.conf local"
 run = "herdr plugin link ."
