@@ -14,6 +14,7 @@ Heraldr gives Herdr tabs and sidebar rows compact, live context without the user
 
 ## Domain specs
 
+- @specs/nm-naming.md
 - @specs/dev-release.md
 
 ## Requirements
@@ -22,7 +23,7 @@ Heraldr gives Herdr tabs and sidebar rows compact, live context without the user
 
 ## Backlog
 
-- Write the user-visible naming spec (`specs/nm-naming.md`): label format, token semantics, ownership and reset rules, icon fallback, one ID per testable check.
+- Extend the naming spec with label format, token semantics, reset rules, and icon fallback.
 - Document the watcher, reconcile, snapshot, and rpc boundaries in `docs/architecture.md`.
 - Unit coverage for `rpc.rs`, `snapshot.rs`, and `watch.rs`.
 - Linux `aarch64` and musl targets once a user asks for them.

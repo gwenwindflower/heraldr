@@ -20,3 +20,15 @@
 - [ ] Run `mise run release:rehearse` and resolve everything it reports
 - [ ] #user Cut `v0.0.1` with `mise run release`, then run `mise run release:verify`
 - [ ] #user Install on a clean `PATH` with `cargo binstall heraldr --git https://github.com/gwenwindflower/heraldr` and `herdr plugin install gwenwindflower/heraldr`
+
+## Phase 2: Tab tracking recovery 🌀
+
+**Requirements**: nm-R001, nm-R002, nm-R003, nm-R004
+
+### Automatic naming across process interruptions
+
+- [x] Reproduce process inspection and rename failures through the binary's socket boundary
+- [x] Preserve ownership and keep polling across temporary failures
+- [x] Verify recovery through lazygit, credential helpers, the shell, and subsequent programs while respecting manual names
+- [ ] #user Run `mise run check` outside the agent sandbox; the manifest's nested sandbox and the hook sweep of `.codex/config.toml` are blocked inside it
+- [ ] #user Run `mise run dev:reload`, reset an affected tab with `mise run herdr:reset`, and verify the in-tab lazygit biometric-auth flow

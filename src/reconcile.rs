@@ -106,7 +106,6 @@ impl Pass<'_> {
                         if let Some(program) = program {
                             base = naming::format(&program, self.icons);
                             named = true;
-                            self.state.record(&tab.tab_id, &base);
                         }
                     }
                 }
@@ -121,10 +120,16 @@ impl Pass<'_> {
                     continue;
                 }
                 let want = naming::desired(position, &base, self.clear);
-                if want != label {
-                    let _ = self
+                if want != label
+                    && self
                         .client
-                        .call("tab.rename", json!({ "tab_id": tab.tab_id, "label": want }));
+                        .call("tab.rename", json!({ "tab_id": tab.tab_id, "label": want }))
+                        .is_err()
+                {
+                    continue;
+                }
+                if named {
+                    self.state.record(&tab.tab_id, &base);
                 }
             }
         }

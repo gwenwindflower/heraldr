@@ -155,7 +155,7 @@ fn focused_pass(client: &Client) -> Result<()> {
     let Some(tab) = snapshot.tabs.iter().find(|t| &t.tab_id == tab_id) else {
         return Ok(());
     };
-    let Some(program) = foreground_program(client, pane_id)? else {
+    let Some(program) = foreground_program(client, pane_id).ok().flatten() else {
         return Ok(());
     };
     let icons = Icons::load(&plugin_root().join("icons.conf"));
@@ -167,8 +167,12 @@ fn focused_pass(client: &Client) -> Result<()> {
     }
     let name = naming::format(&program, &icons);
     let want = format!("{}{name}", naming::index_prefix(label).unwrap_or(""));
-    if want != label {
-        client.call("tab.rename", json!({ "tab_id": tab.tab_id, "label": want }))?;
+    if want != label
+        && client
+            .call("tab.rename", json!({ "tab_id": tab.tab_id, "label": want }))
+            .is_err()
+    {
+        return Ok(());
     }
     state.record(&tab.tab_id, &name);
     state.save()
