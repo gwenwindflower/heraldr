@@ -10,12 +10,8 @@ jq = "latest"
 
 # Rust
 [tasks.build]
-description = "Compile the optimized binary into dist/bin"
-run = [
-  "cargo build --locked --release",
-  "mkdir -p dist/bin",
-  "cp target/release/heraldr dist/bin/heraldr",
-]
+description = "Compile the optimized binary into target/release"
+run = "cargo build --locked --release"
 
 [tasks."dev:build"]
 description = "Run standard build with pretty interactive output"

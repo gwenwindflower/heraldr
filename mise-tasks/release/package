@@ -12,13 +12,13 @@ version="$(mise-tasks/version/read)"
 package="${name}-${target}-v${version}"
 
 mise run build
-[[ -x "dist/bin/${binary}" ]] || {
-	printf 'mise run build must leave the binary at dist/bin/%s\n' "$binary" >&2
+[[ -x "target/release/${binary}" ]] || {
+	printf 'mise run build must leave the binary at target/release/%s\n' "$binary" >&2
 	exit 1
 }
 
 mkdir -p "dist/${package}"
-cp "dist/bin/${binary}" "dist/${package}/${binary}"
+cp "target/release/${binary}" "dist/${package}/${binary}"
 tar -C dist -czf "dist/${package}.tgz" "${package}"
 (cd dist && shasum -a 256 "${package}.tgz" >"${package}.tgz.sha256")
 rm -r "dist/${package}"
