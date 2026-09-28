@@ -8,6 +8,15 @@
 //! covers. Ported from the pure-fish engine, itself a rework of
 //! qu8n/herdr-automatic-rename.
 
+#![allow(
+    clippy::struct_field_names,
+    reason = "Snapshot fields match Herdr's wire names"
+)]
+#![allow(
+    clippy::needless_pass_by_value,
+    reason = "RPC calls accept owned JSON request values"
+)]
+
 mod naming;
 mod reconcile;
 mod rpc;
@@ -26,7 +35,7 @@ use crate::reconcile::Pass;
 use crate::rpc::Client;
 use crate::snapshot::Snapshot;
 use crate::state::Store;
-use crate::watch::{PidLock, plugin_root};
+use crate::watch::{PidLock, icon_path};
 
 #[derive(Parser)]
 #[command(
@@ -78,17 +87,20 @@ fn main() -> Result<()> {
         }
         Command::Clear => {
             // Stop the watcher first or it would immediately redress everything.
-            watch::stop()?;
+            watch::stop();
             std::thread::sleep(Duration::from_millis(150));
             one_shot(true, None)
         }
-        Command::Status => status(),
+        Command::Status => {
+            status();
+            Ok(())
+        }
     }
 }
 
 fn one_shot(clear: bool, force_tab: Option<&str>) -> Result<()> {
     let client = Client::from_env();
-    let icons = Icons::load(&plugin_root().join("icons.conf"));
+    let icons = Icons::load(&icon_path());
     let mut state = Store::load(&client);
     Pass {
         client: &client,
@@ -124,7 +136,7 @@ fn reset_target() -> Result<Option<String>> {
     Ok(Snapshot::fetch(&client)?.focused_tab_id)
 }
 
-fn status() -> Result<()> {
+fn status() {
     let client = Client::from_env();
     println!("socket   {}", client.socket_path().display());
     match client.call("ping", serde_json::json!({})) {
@@ -139,7 +151,7 @@ fn status() -> Result<()> {
         Some(pid) => println!("watcher  running (pid {pid})"),
         None => println!("watcher  not running — any herdr event will kick one off"),
     }
-    let icon_path = plugin_root().join("icons.conf");
+    let icon_path = icon_path();
     let icons = Icons::load(&icon_path);
     if icons.is_built_in() {
         println!(
@@ -151,5 +163,4 @@ fn status() -> Result<()> {
         println!("icons    {} rows from {}", icons.len(), icon_path.display());
     }
     println!("state    {} tabs tracked", Store::load(&client).len());
-    Ok(())
 }

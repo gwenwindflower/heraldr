@@ -127,5 +127,29 @@ if (cd "$missing_cargo_root" && PATH="$missing_cargo_root/fakebin" ./scripts/ins
 	exit 1
 fi
 rg -q 'Cargo.*https://github.com/gwenwindflower/heraldr#install' "$missing_cargo_root/output.log"
+rg -q 'https://www.rust-lang.org/tools/install' "$missing_cargo_root/output.log"
+
+wrong_version_root="$(make_case wrong-version)"
+cat >"$wrong_version_root/fakebin/cargo" <<'SCRIPT'
+#!/bin/sh
+if [ "$1" = pkgid ]; then
+  printf '%s\n' 'path+file:///tmp/heraldr#heraldr@0.0.1'
+fi
+SCRIPT
+chmod +x "$wrong_version_root/fakebin/cargo"
+write_heraldr "$wrong_version_root/fakebin/heraldr" 0.0.2
+if run_installer "$wrong_version_root" >"$wrong_version_root/output.log" 2>&1; then
+	printf 'Installer accepted a mismatched version.\n' >&2
+	exit 1
+fi
+rg -q 'expected heraldr 0.0.1.*actual heraldr 0.0.2' "$wrong_version_root/output.log"
+
+missing_binary_root="$(make_case missing-binary)"
+cp "$wrong_version_root/fakebin/cargo" "$missing_binary_root/fakebin/cargo"
+if run_installer "$missing_binary_root" >"$missing_binary_root/output.log" 2>&1; then
+	printf 'Installer succeeded without a binary on PATH.\n' >&2
+	exit 1
+fi
+rg -q 'CARGO_HOME/bin.*PATH' "$missing_binary_root/output.log"
 
 printf 'Binary installer tests passed.\n'

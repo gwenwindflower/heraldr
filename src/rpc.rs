@@ -19,13 +19,12 @@ pub struct Client {
 }
 
 impl Client {
-    /// herdr exports HERDR_SOCKET_PATH into plugin commands and pane
+    /// herdr exports `HERDR_SOCKET_PATH` into plugin commands and pane
     /// environments both, so a daemon spawned from either binds the same
     /// session. Absent the variable, the default session's socket applies.
     pub fn from_env() -> Self {
         let socket = std::env::var_os("HERDR_SOCKET_PATH")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| config_home().join("herdr/herdr.sock"));
+            .map_or_else(|| config_home().join("herdr/herdr.sock"), PathBuf::from);
         Self { socket }
     }
 
@@ -38,8 +37,7 @@ impl Client {
     pub fn session_dir(&self) -> PathBuf {
         self.socket
             .parent()
-            .map(Path::to_path_buf)
-            .unwrap_or_else(|| PathBuf::from("."))
+            .map_or_else(|| PathBuf::from("."), Path::to_path_buf)
     }
 
     pub fn call(&self, method: &str, params: Value) -> Result<Value> {
@@ -62,7 +60,10 @@ impl Client {
                 .get("message")
                 .and_then(Value::as_str)
                 .unwrap_or("unknown herdr error");
-            bail!("{method}: {message}");
+            let code = err
+                .get("code")
+                .map_or_else(|| "unknown".to_string(), Value::to_string);
+            bail!("{method} ({code}): {message}");
         }
         response
             .get("result")
@@ -75,6 +76,8 @@ impl Client {
     pub fn subscribe(&self, types: &[&str]) -> Result<BufReader<UnixStream>> {
         let mut stream = UnixStream::connect(&self.socket)
             .with_context(|| format!("connecting to herdr at {}", self.socket.display()))?;
+        stream.set_write_timeout(Some(Duration::from_secs(10)))?;
+        stream.set_read_timeout(Some(Duration::from_secs(10)))?;
         let subscriptions: Vec<Value> = types.iter().map(|t| json!({ "type": t })).collect();
         let request = json!({
             "id": "heraldr-sub",
@@ -93,6 +96,7 @@ impl Client {
         if response.get("error").is_some() {
             bail!("events.subscribe rejected: {}", ack.trim());
         }
+        reader.get_ref().set_read_timeout(None)?;
         Ok(reader)
     }
 }
@@ -102,7 +106,39 @@ pub fn home() -> PathBuf {
 }
 
 fn config_home() -> PathBuf {
-    std::env::var_os("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| home().join(".config"))
+    std::env::var_os("XDG_CONFIG_HOME").map_or_else(|| home().join(".config"), PathBuf::from)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::os::unix::net::UnixListener;
+
+    #[test]
+    fn server_errors_name_the_method_code_and_message() {
+        let socket = std::env::temp_dir().join(format!("heraldr-rpc-{}.sock", std::process::id()));
+        let listener = UnixListener::bind(&socket).unwrap();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = String::new();
+            BufReader::new(&stream).read_line(&mut request).unwrap();
+            writeln!(
+                stream,
+                "{}",
+                json!({"error": {"code": "not_found", "message": "tab missing"}})
+            )
+            .unwrap();
+        });
+        let error = Client {
+            socket: socket.clone(),
+        }
+        .call("tab.rename", json!({}))
+        .unwrap_err()
+        .to_string();
+        server.join().unwrap();
+        std::fs::remove_file(socket).unwrap();
+        assert!(error.contains("tab.rename"));
+        assert!(error.contains("not_found"));
+        assert!(error.contains("tab missing"));
+    }
 }

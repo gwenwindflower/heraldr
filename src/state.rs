@@ -1,7 +1,7 @@
 //! The manual-rename opt-out store.
 //!
 //! Herdr has no per-tab metadata, so which tabs Heraldr owns is tracked here:
-//! per tab_id, the last base label Heraldr set and whether auto-naming is
+//! per `tab_id`, the last base label Heraldr set and whether auto-naming is
 //! still enabled. Each session's watcher and one-shot commands share a
 //! socket-keyed store; other sessions cannot overwrite or prune its tabs.
 
@@ -29,14 +29,20 @@ pub struct Store {
     dirty: bool,
 }
 
-/// $HERALDR_STATE_DIR overrides the store location (tests).
+/// `HERALDR_STATE_DIR` overrides the store location (tests).
 pub fn state_dir() -> PathBuf {
     if let Some(dir) = std::env::var_os("HERALDR_STATE_DIR") {
         return PathBuf::from(dir);
     }
+    if let Some(dir) = std::env::var_os("HERDR_PLUGIN_STATE_DIR") {
+        return PathBuf::from(dir);
+    }
+    standalone_state_dir()
+}
+
+fn standalone_state_dir() -> PathBuf {
     let state_home = std::env::var_os("XDG_STATE_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| home().join(".local/state"));
+        .map_or_else(|| home().join(".local/state"), PathBuf::from);
     state_home.join("herdr-heraldr")
 }
 
@@ -53,7 +59,21 @@ impl Store {
         let (text, initialize) = match std::fs::read_to_string(&path) {
             Ok(text) => (Some(text), false),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => (
-                std::fs::read_to_string(state_dir().join("state.json")).ok(),
+                std::fs::read_to_string(state_dir().join("state.json"))
+                    .ok()
+                    .or_else(|| {
+                        if std::env::var_os("HERALDR_STATE_DIR").is_some()
+                            || std::env::var_os("HERDR_PLUGIN_STATE_DIR").is_none()
+                        {
+                            return None;
+                        }
+                        let standalone = standalone_state_dir();
+                        std::fs::read_to_string(
+                            standalone.join(format!("state-{:016x}.json", session_key(client))),
+                        )
+                        .or_else(|_| std::fs::read_to_string(standalone.join("state.json")))
+                        .ok()
+                    }),
                 true,
             ),
             Err(_) => (None, false),

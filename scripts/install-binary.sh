@@ -4,7 +4,7 @@ set -eu
 
 install_docs=https://github.com/gwenwindflower/heraldr#install
 if ! command -v cargo >/dev/null 2>&1; then
-	printf 'Cargo is required to install Heraldr. Install it before continuing: %s\n' "$install_docs" >&2
+	printf 'Cargo is required to install Heraldr: https://www.rust-lang.org/tools/install (plugin requirements: %s).\n' "$install_docs" >&2
 	exit 1
 fi
 
@@ -51,6 +51,6 @@ if ! path_binary=$(command -v heraldr 2>/dev/null); then
 	exit 1
 fi
 if ! is_current "$path_binary"; then
-	printf 'Heraldr on PATH reported an unexpected version; expected %s.\n' "$expected_version" >&2
+	printf 'Heraldr on PATH reported an unexpected version; expected %s; actual %s.\n' "$expected_version" "${installed_version:-unavailable}" >&2
 	exit 1
 fi

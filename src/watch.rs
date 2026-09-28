@@ -74,6 +74,7 @@ pub fn watch(poll: Duration) -> Result<()> {
     };
 
     let reader = client.subscribe(SUBSCRIPTIONS)?;
+    let subscriber = client.clone();
     let (tx, rx) = mpsc::channel();
     std::thread::spawn(move || {
         let mut reader = reader;
@@ -82,8 +83,22 @@ pub fn watch(poll: Duration) -> Result<()> {
             line.clear();
             match reader.read_line(&mut line) {
                 Ok(0) | Err(_) => {
-                    let _ = tx.send(Signal::Gone);
-                    return;
+                    let mut recovered = None;
+                    for _ in 0..3 {
+                        std::thread::sleep(Duration::from_millis(500));
+                        if let Ok(connection) = subscriber.subscribe(SUBSCRIPTIONS) {
+                            recovered = Some(connection);
+                            break;
+                        }
+                    }
+                    let Some(connection) = recovered else {
+                        let _ = tx.send(Signal::Gone);
+                        return;
+                    };
+                    reader = connection;
+                    if tx.send(Signal::Changed).is_err() {
+                        return;
+                    }
                 }
                 Ok(_) => {
                     if tx.send(Signal::Changed).is_err() {
@@ -130,7 +145,7 @@ pub fn watch(poll: Duration) -> Result<()> {
 fn full_pass(client: &Client) -> Result<()> {
     // Reload the manifest and the store each pass: icons.conf edits apply
     // live, and one-shot commands (reset, clear) share the store on disk.
-    let icons = Icons::load(&plugin_root().join("icons.conf"));
+    let icons = Icons::load(&icon_path());
     let mut state = Store::load(client);
     Pass {
         client,
@@ -156,7 +171,7 @@ fn focused_pass(client: &Client) -> Result<()> {
     let Some(program) = foreground_program(client, pane_id).ok().flatten() else {
         return Ok(());
     };
-    let icons = Icons::load(&plugin_root().join("icons.conf"));
+    let icons = Icons::load(&icon_path());
     let mut state = Store::load(client);
     let label = tab.label();
     let stripped = naming::strip_prefix(label);
@@ -176,12 +191,20 @@ fn focused_pass(client: &Client) -> Result<()> {
     state.save()
 }
 
-/// The plugin root, where icons.conf lives: HERDR_PLUGIN_ROOT when herdr
+/// The plugin root, where icons.conf lives: `HERDR_PLUGIN_ROOT` when herdr
 /// invoked us, or the current directory for direct development commands.
 pub fn plugin_root() -> PathBuf {
-    std::env::var_os("HERDR_PLUGIN_ROOT")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("."))
+    std::env::var_os("HERDR_PLUGIN_ROOT").map_or_else(|| PathBuf::from("."), PathBuf::from)
+}
+
+pub fn icon_path() -> PathBuf {
+    if let Some(config) = std::env::var_os("HERDR_PLUGIN_CONFIG_DIR") {
+        let path = PathBuf::from(config).join("icons.conf");
+        if path.is_file() {
+            return path;
+        }
+    }
+    plugin_root().join("icons.conf")
 }
 
 /// Spawn a detached watcher unless one already holds the session's lock. The
@@ -203,13 +226,13 @@ pub fn kick() -> Result<()> {
     Ok(())
 }
 
-pub fn stop() -> Result<bool> {
+pub fn stop() -> bool {
     let client = Client::from_env();
     let Some(pid) = PidLock::holder(&client) else {
-        return Ok(false);
+        return false;
     };
     unsafe { libc::kill(pid, libc::SIGTERM) };
-    Ok(true)
+    true
 }
 
 /// One watcher per session, enforced with flock on a pidfile keyed by the

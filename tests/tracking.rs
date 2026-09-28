@@ -10,6 +10,10 @@ use std::time::{Duration, Instant};
 use serde_json::{Value, json};
 
 #[derive(Default)]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "Independent fake-server failure switches"
+)]
 struct Session {
     tab_id: String,
     label: String,
@@ -19,6 +23,8 @@ struct Session {
     rename_fails: bool,
     inspections: usize,
     renames: usize,
+    disconnect: bool,
+    subscriptions: usize,
 }
 
 struct Herdr {
@@ -53,6 +59,13 @@ impl Herdr {
         let server = thread::spawn(move || {
             let mut subscriptions = Vec::new();
             while !peer_stopped.load(Ordering::Relaxed) {
+                {
+                    let mut session = peer_session.lock().unwrap();
+                    if session.disconnect {
+                        subscriptions.clear();
+                        session.disconnect = false;
+                    }
+                }
                 let (mut stream, _) = match listener.accept() {
                     Ok(connection) => connection,
                     Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => {
@@ -71,7 +84,6 @@ impl Herdr {
                 let method = request["method"].as_str().unwrap();
                 let mut session = peer_session.lock().unwrap();
                 let result = match method {
-                    "events.subscribe" => json!({}),
                     "session.snapshot" => json!({ "snapshot": {
                         "focused_tab_id": session.tab_id, "focused_pane_id": "w1:p1",
                         "workspaces": [{ "workspace_id": "w1", "label": "project" }],
@@ -99,7 +111,9 @@ impl Herdr {
                         }
                         json!({ "tab": { "tab_id": session.tab_id, "label": session.label } })
                     }
-                    "workspace.report_metadata" | "pane.report_metadata" => json!({}),
+                    "events.subscribe" | "workspace.report_metadata" | "pane.report_metadata" => {
+                        json!({})
+                    }
                     other => panic!("unexpected method: {other}"),
                 };
                 let failed = (method == "pane.process_info" && session.inspection_fails)
@@ -111,6 +125,7 @@ impl Herdr {
                 };
                 writeln!(stream, "{response}").unwrap();
                 if method == "events.subscribe" {
+                    session.subscriptions += 1;
                     subscriptions.push(stream);
                 }
             }
@@ -131,6 +146,7 @@ impl Herdr {
             .arg(subcommand)
             .env("HERDR_SOCKET_PATH", self.root.join("herdr.sock"))
             .env("HERALDR_STATE_DIR", &self.state_root)
+            .env_remove("HERDR_PLUGIN_CONFIG_DIR")
             .env("HERDR_PLUGIN_ROOT", env!("CARGO_MANIFEST_DIR"));
         command
     }
@@ -202,6 +218,73 @@ impl Herdr {
     fn follows(&mut self, program: &str) {
         self.change(|session| session.program = program.into());
         self.wait_for(|session| session.label.ends_with(&format!(" {program}")));
+    }
+}
+
+#[test]
+fn subscription_disconnect_recovers_without_an_event_kick() {
+    let mut herdr = Herdr::start();
+    herdr.watch();
+    herdr.change(|session| session.disconnect = true);
+    herdr.wait_for(|session| session.subscriptions >= 2);
+    herdr.follows("nvim");
+}
+
+#[test]
+fn plugin_state_directory_inherits_standalone_ownership() {
+    let herdr = Herdr::start();
+    let standalone = herdr.root.join("standalone/herdr-heraldr");
+    std::fs::create_dir_all(&standalone).unwrap();
+    let record = json!({"w1:t1": {"auto": "G lazygit", "enabled": true}}).to_string();
+    std::fs::write(standalone.join("state.json"), &record).unwrap();
+    herdr.change(|session| {
+        session.label = "[1] G lazygit".into();
+        session.program = "fish".into();
+    });
+    let output = herdr
+        .command("reconcile")
+        .env_remove("HERALDR_STATE_DIR")
+        .env("HERDR_PLUGIN_STATE_DIR", &herdr.state_root)
+        .env("XDG_STATE_HOME", herdr.root.join("standalone"))
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    assert!(herdr.state_root.is_dir());
+    assert!(herdr.label().ends_with(" fish"));
+    herdr.change(|session| session.program = "nvim".into());
+    let output = herdr
+        .command("reconcile")
+        .env_remove("HERALDR_STATE_DIR")
+        .env("HERDR_PLUGIN_STATE_DIR", &herdr.state_root)
+        .env("XDG_STATE_HOME", herdr.root.join("standalone"))
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    assert_eq!(
+        std::fs::read_to_string(standalone.join("state.json")).unwrap(),
+        record
+    );
+    assert!(herdr.label().ends_with(" nvim"));
+}
+
+#[test]
+fn plugin_config_icons_override_shipped_icons() {
+    let herdr = Herdr::start();
+    let config = herdr.root.join("config");
+    std::fs::create_dir_all(&config).unwrap();
+    for glyph in ["G", "H"] {
+        std::fs::write(
+            config.join("icons.conf"),
+            format!("* *\n{glyph} lazygit\nS fish\n"),
+        )
+        .unwrap();
+        let output = herdr
+            .command("reconcile")
+            .env("HERDR_PLUGIN_CONFIG_DIR", &config)
+            .output()
+            .unwrap();
+        assert!(output.status.success());
+        assert_eq!(herdr.label(), format!("[1] {glyph} lazygit"));
     }
 }
 

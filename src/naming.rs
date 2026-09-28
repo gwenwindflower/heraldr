@@ -88,8 +88,7 @@ impl Icons {
         self.rows
             .iter()
             .find(|(programs, _)| programs.iter().any(|p| p == program))
-            .map(|(_, glyph)| glyph.as_str())
-            .unwrap_or(&self.fallback)
+            .map_or(&self.fallback, |(_, glyph)| glyph.as_str())
     }
 
     pub fn len(&self) -> usize {
@@ -121,8 +120,7 @@ pub fn format(program: &str, icons: &Icons) -> String {
     let name = ALIASES
         .iter()
         .find(|(from, _)| *from == resolved)
-        .map(|(_, to)| *to)
-        .unwrap_or(resolved);
+        .map_or(resolved, |(_, to)| *to);
     let name: String = name.chars().take(MAX_NAME_LEN).collect();
     format!("{} {}", icons.get(resolved), name)
 }

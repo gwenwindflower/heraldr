@@ -13,7 +13,7 @@ Heraldr supports Linux and macOS. Its icons require a terminal font with Nerd Fo
 
 ## Install
 
-You need [Herdr](https://herdr.dev/docs/install/) 0.7.5 or later, Git, and a compatible [Rust toolchain with Cargo](https://www.rust-lang.org/tools/install). [Cargo Binstall](https://github.com/cargo-bins/cargo-binstall#installation) is optional, but installs a release artifact much faster than compiling from source. Install the plugin:
+You need [Herdr](https://herdr.dev/docs/install/) 0.7.5 or later, Git, and a compatible [Rust toolchain with Cargo](https://www.rust-lang.org/tools/install). Cargo's binary directory (`$CARGO_HOME/bin`, normally `~/.cargo/bin`) must be on Herdr's `PATH`. [Cargo Binstall](https://github.com/cargo-bins/cargo-binstall#installation) is optional, but installs a release artifact much faster than compiling from source. Install the plugin:
 
 ```bash
 herdr plugin install gwenwindflower/heraldr
@@ -27,8 +27,14 @@ Verify the installation:
 herdr plugin list --plugin heraldr
 ```
 
-> [!TIP]
-> If you have mise installed, you can also use [mise to manage rust tools](https://mise.jdx.dev/lang/rust.html), it will use `cargo-binstall` to install tools by default if added as a tool in your `mise.toml` file. If you'd prefer to have mise manage your cargo bin tools, run `mise use -g cargo:heraldr`. The plugin install will not install the binary if it's already available on `PATH`. We use mise for development and CI, so this is convenient if you also want to develop Heraldr locally.
+To install the binary directly before linking the plugin, use Binstall or compile from source:
+
+```bash
+cargo binstall heraldr --git https://github.com/gwenwindflower/heraldr
+cargo install --git https://github.com/gwenwindflower/heraldr --locked
+```
+
+[Release archives](https://github.com/gwenwindflower/heraldr/releases) include binaries and SHA-256 checksums for Linux and macOS on Intel and ARM. The plugin installer reuses a binary only when its version exactly matches the manifest's checkout.
 
 ### Update
 
@@ -56,6 +62,14 @@ herdr plugin action invoke heraldr.clear
 herdr plugin uninstall heraldr
 ```
 
+### Configuration and state
+
+Copy `icons.conf` into Herdr's plugin config directory to customize icons; `herdr plugin config-dir heraldr` prints that directory. Heraldr reloads this file during reconciliation, falling back to the shipped file when no override exists and compiled icons when the selected file is unusable.
+
+Plugin invocations keep ownership records and watcher locks in `HERDR_PLUGIN_STATE_DIR`. Standalone commands use `$XDG_STATE_HOME/herdr-heraldr` (normally `~/.local/state/herdr-heraldr`); `HERALDR_STATE_DIR` explicitly overrides either location. On first use, the plugin state directory inherits existing standalone ownership records without modifying them. Stop the running watcher before switching binaries or removing state. Uninstalling leaves user configuration in place; remove configuration or ownership files only when you want to discard those settings.
+
+The watcher retries interrupted event subscriptions while retaining its session lock. It exits if the session remains unavailable; a later plugin event starts it again.
+
 ## Local development
 
 Development runs on [mise](https://mise.jdx.dev), which owns both the toolchain and the task list. Clone the repository, then:
@@ -63,6 +77,7 @@ Development runs on [mise](https://mise.jdx.dev), which owns both the toolchain 
 ```bash
 mise trust
 mise install
+mise run hooks:install
 ```
 
 That installs the linters and release tooling `mise.toml` declares, so your machine and CI run the same tools. Rust comes from rustup on your `PATH`; `rust-toolchain.toml` selects stable with clippy and rustfmt. Herdr itself is the other prerequisite mise does not manage.

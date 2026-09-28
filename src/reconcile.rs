@@ -156,7 +156,7 @@ impl Pass<'_> {
             let (space, worktree) = match (self.clear, pair) {
                 (false, Some((space, worktree))) => (
                     Value::from(space),
-                    worktree.map(Value::from).unwrap_or(Value::Null),
+                    worktree.map_or(Value::Null, Value::from),
                 ),
                 _ => (Value::Null, Value::Null),
             };
@@ -205,7 +205,7 @@ impl Pass<'_> {
 }
 
 /// Space keys whose sidebar group is collapsed right now. herdr exposes
-/// collapse nowhere in its API; session.json's top-level collapsed_space_keys
+/// collapse nowhere in its API; session.json's top-level `collapsed_space_keys`
 /// (written on a 5s debounce) is the one readable copy, so numbers can lag a
 /// collapse until the next event or safety-net pass.
 pub fn collapsed_spaces(session_dir: &Path) -> HashSet<String> {
@@ -225,10 +225,10 @@ pub fn collapsed_spaces(session_dir: &Path) -> HashSet<String> {
         .unwrap_or_default()
 }
 
-/// Each workspace's agent-row display pair, keyed by workspace_id: the
+/// Each workspace's agent-row display pair, keyed by `workspace_id`: the
 /// space's main-checkout label, plus the workspace's own label when it is a
 /// linked worktree nested under that main checkout. The nesting rule matches
-/// workspace_positions (a repo groups only with 2+ open workspaces and a
+/// `workspace_positions` (a repo groups only with 2+ open workspaces and a
 /// main checkout), so the agents panel and the spaces panel always agree on
 /// what counts as a worktree.
 pub fn space_names(workspaces: &[Workspace]) -> HashMap<&str, (&str, Option<&str>)> {
@@ -264,8 +264,8 @@ pub fn space_names(workspaces: &[Workspace]) -> HashMap<&str, (&str, Option<&str
 /// Each workspace's 1-based slot in herdr's VISIBLE sidebar order (0 = the
 /// sidebar does not render it). The jump keybind resolves through that
 /// visible order, not the raw list order, so this mirrors herdr's own
-/// workspace_list_entries_inner:
-///   * Workspaces sharing a worktree repo_key nest into one "space", but only
+/// `workspace_list_entries_inner`:
+///   * Workspaces sharing a worktree `repo_key` nest into one "space", but only
 ///     when the repo has 2+ open workspaces and one is the main checkout.
 ///   * A space renders at the slot of its first-appearing member, headed by
 ///     the main checkout, with the other members nested after it in array
@@ -376,7 +376,7 @@ mod tests {
     }
 
     fn positions(workspaces: &[Workspace], collapsed: &[&str]) -> Vec<usize> {
-        let collapsed = collapsed.iter().map(|s| s.to_string()).collect();
+        let collapsed = collapsed.iter().map(ToString::to_string).collect();
         workspace_positions(workspaces, &collapsed)
             .into_iter()
             .map(|(_, p)| p)

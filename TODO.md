@@ -1,5 +1,22 @@
 # Heraldr TODO
 
+## Phase 4: Tool project compliance 🌀
+
+**Requirements**: dev-R008, dev-R011, dev-R013, dev-R015, nm-R007, nm-R008, nm-R009
+
+### Rust and plugin distribution contracts
+
+- [x] Enable pedantic Rust linting and the standard release profile
+- [x] Remove Homebrew publishing and document direct installation and Cargo PATH requirements
+- [x] Prove installer failures report missing Cargo, unresolved binaries, and version mismatches
+- [x] Honor plugin storage directories and reconnect interrupted subscriptions
+- [x] Run the local gate and workflow audits
+- [x] Run release rehearsal; preflight reports that no `origin` remote is configured
+
+### Live verification
+
+- [ ] #user Run `mise run dev:reload` and verify reset, clear, custom icons, and watcher recovery in Herdr
+
 ## Phase 1: Release readiness 🌀
 
 **Requirements**: R001, dev-R001, dev-R008, dev-R009, dev-R012
