@@ -6,6 +6,7 @@ shellcheck = "latest"
 prek = "latest"
 rumdl = "latest"
 cargo-binstall = "latest"
+jq = "latest"
 
 # Rust
 [tasks.build]
@@ -125,13 +126,17 @@ run = "bash tests/publishing.sh"
 description = "Verify release artifact recovery rejects mismatched or corrupt inputs"
 run = "bash tests/release-recovery.sh"
 
+[tasks."test:rulesets"]
+description = "Verify branch rules require CI checks without release-only jobs"
+run = "bash tests/repo-rulesets.sh"
+
 [tasks."test:build"]
 description = "Verify the optimized binary builds"
 depends = ["build"]
 
 [tasks."test:crate"]
 description = "Compile the packaged crate without uploading it"
-run = "cargo publish --dry-run --locked --allow-dirty"
+run = "cargo package --locked --allow-dirty"
 
 [tasks.test]
 description = "Run every test suite"

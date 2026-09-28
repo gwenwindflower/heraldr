@@ -2,6 +2,21 @@
 
 Shipped Phases, newest first. Each entry keeps the Phase header, Objectives, and Tasks verbatim with the boxes checked, followed by a short narrative of decisions and surprises.
 
+## Phase 6: Portable CI and repository provisioning ✅
+
+**Requirements**: dev-R011, dev-R023, dev-R024
+
+### Portable workflow plumbing
+
+- [x] Replace ripgrep in shell tests and verify without it
+- [x] Remove unused Homebrew provisioning and formula generation
+- [x] Restrict required-check discovery to CI and test the generated ruleset
+- [x] Run gates and record the toolchain simplification audit
+
+Hosted test runners exposed an undeclared ripgrep dependency. Shell suites use standard grep and Bash matching, and all suites passed with ripgrep disabled. Ruleset discovery reads only the latest completed CI push run on main, excluding release jobs attached to the same commit; a regression test checks the generated policy without touching GitHub. The existing jq dependency is declared in mise.
+
+Removed unused Homebrew scaffolding and replaced dry-run publication with Cargo's package verification. `release:check` passed, including 35 Rust tests, shell suites, optimized and packaged builds, and workflow audits. The tooling audit retained the shared mise tasks; future distribution-tool research lives in the tool system's vault notes.
+
 ## Phase 5: Crates.io release publishing ✅
 
 **Requirements**: dev-R019, dev-R020, dev-R021, dev-R022

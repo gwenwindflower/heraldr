@@ -106,7 +106,7 @@ That stops the running watcher, installs the checkout's binary on your `PATH`, a
 
 `mise run check` is the full local gate. CI installs mise and runs these same tasks, so a task definition is the only place a check lives.
 
-The gate includes an optimized binary build and a crates.io publication dry run that compiles the packaged source. Only the dry run allows a dirty checkout, so it can verify work in progress and the release pipeline's uncommitted version bump. Actual publication requires a clean checkout matching the release tag.
+The gate includes an optimized binary build and `cargo package`, which compiles the packaged source without uploading it. Package verification allows a dirty checkout, so it can check work in progress and the release pipeline's uncommitted version bump. Actual publication requires a clean checkout matching the release tag.
 
 `wt merge` runs one gate after rebasing onto the target: `check` for a feature branch, or `release:check` (local checks plus workflow audits) for the default branch. Commit hooks still check staged files. These gates use plain Cargo output and never install Heraldr on your `PATH`; installer tests simulate Cargo and Binstall inside temporary directories.
 
