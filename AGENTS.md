@@ -16,6 +16,8 @@ Herdr commands (`herdr:*`, `dev:*`) need the Herdr socket, which sandboxed agent
 
 Never run `release`, `release:push`, or `release:create`. They push commits and create public GitHub releases behind mise `confirm` gates that default to no. `release:rehearse` is the dry run: it exercises every read-only step and prints the notes that would ship. Run it when the project looks ready, report what it says, and stop.
 
+`release:bootstrap-crate` is the human-confirmed first crates.io publication. `release:publish-crate` runs only in the release workflow with OIDC credentials, after binary uploads. Never invoke either publication task as a check; `test:crate` is the publication dry run included in `check` and CI. `CRATES_IO_PUBLISHING=true` enables the OIDC job after the first crate exists and its trusted publisher is configured.
+
 `Cargo.toml` is the version's source of truth, read through `version:read`. `version:write` derives `Cargo.lock` and `herdr-plugin.toml` from it; never hand-edit those versions. Report drift with `version:check` and repair it with `version:sync`. `version:bump` belongs to a release, not to ordinary work.
 
 ## Hooks guard commits, tasks guard merges

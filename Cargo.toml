@@ -9,6 +9,7 @@ repository = "https://github.com/gwenwindflower/heraldr"
 readme = "README.md"
 keywords = ["herdr", "plugin", "terminal", "cli"]
 categories = ["command-line-utilities"]
+include = ["src/**", "tests/*.rs", "icons.conf", "Cargo.toml", "Cargo.lock", "README.md", "LICENSE"]
 
 [package.metadata.binstall]
 pkg-url = "{ repo }/releases/download/v{ version }/{ name }-{ target }-v{ version }{ archive-suffix }"

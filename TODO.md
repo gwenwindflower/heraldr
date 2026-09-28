@@ -24,7 +24,7 @@
 ### Repository provisioning
 
 - [ ] #user Create `gwenwindflower/.github` with CONTRIBUTING, SECURITY, FUNDING, and a profile README
-- [ ] #user Create `gwenwindflower/heraldr`, add it as `origin`, and push `main`
+- [x] #user Create `gwenwindflower/heraldr`, add it as `origin`, and push `main`
 - [ ] Run `mise run repo:settings --description "Herdr tab, workspace, and agent chrome driven by the live session" --topics "herdr,herdr-plugin,rust,terminal"` and `mise run repo:labels`
 
 ### First green CI
@@ -36,6 +36,8 @@
 
 - [ ] Run `mise run release:rehearse` and resolve everything it reports
 - [ ] #user Cut `v0.0.1` with `mise run release`, then run `mise run release:verify`
+- [ ] #user Fetch release tags and run `mise run release:bootstrap-crate` from the release commit
+- [ ] #user Configure the crates.io trusted publisher and GitHub `release` environment, then set `CRATES_IO_PUBLISHING=true`
 - [ ] #user Install on a clean `PATH` with `cargo binstall heraldr --git https://github.com/gwenwindflower/heraldr` and `herdr plugin install gwenwindflower/heraldr`
 
 ## Phase 2: Tab tracking recovery 🌀

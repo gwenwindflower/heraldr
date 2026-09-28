@@ -106,6 +106,8 @@ That stops the running watcher, installs the checkout's binary on your `PATH`, a
 
 `mise run check` is the full local gate. CI installs mise and runs these same tasks, so a task definition is the only place a check lives.
 
+The gate includes an optimized binary build and a crates.io publication dry run that compiles the packaged source. Only the dry run allows a dirty checkout, so it can verify work in progress and the release pipeline's uncommitted version bump. Actual publication requires a clean checkout matching the release tag.
+
 `wt merge` runs one gate after rebasing onto the target: `check` for a feature branch, or `release:check` (local checks plus workflow audits) for the default branch. Commit hooks still check staged files. These gates use plain Cargo output and never install Heraldr on your `PATH`; installer tests simulate Cargo and Binstall inside temporary directories.
 
 ### Pretty tasks
@@ -130,6 +132,20 @@ Releases run from a clean local `main` with `gh` already authenticated. All tags
 GitHub creates the tag at the default-branch head when it publishes the release. Do not create or push a separate tag. The `Release build` workflow then verifies the tag against Cargo, builds each supported target, and attaches archives and checksums. `mise run release:verify` inspects the result.
 
 Rerun failed release jobs from their original event so they retain permission to upload assets: `gh run rerun <run-id> --failed`. To rebuild an existing tag for diagnosis without changing the release, run `gh workflow run release-build.yml -f tag=vX.Y.Z` — it keeps outputs as workflow artifacts.
+
+### First crates.io publication
+
+1. Verify your crates.io email and authenticate locally with `cargo login`.
+2. From clean `main`, run `mise run release:rehearse`, then `mise run release v0.0.1`. Wait for `Release build` to finish uploading all four archives and their checksums; `mise run release:verify` reports the workflow and assets.
+3. Run `git fetch origin --tags` to obtain the tag GitHub created. Keep the checkout at that release commit, then run `mise run release:bootstrap-crate` and confirm publication. The task checks the source tag and uploaded assets before using your local Cargo credentials.
+4. In the crate's Settings → Trusted Publishing, add GitHub owner `gwenwindflower`, repository `heraldr`, workflow filename `release-build.yml`, and environment `release`. Create the matching `release` environment in GitHub repository settings.
+5. Set the GitHub Actions repository variable `CRATES_IO_PUBLISHING` to `true`. Future published releases obtain an OIDC token and publish the crate after the binaries upload. Leave the variable unset until Trusted Publishing is configured; the initial release skips the crate job.
+
+Crates.io requires the first version to be published with an API token before Trusted Publishing can be configured. The workflow uses the official [crates.io authentication action](https://github.com/rust-lang/crates-io-auth-action); no personal Cargo token belongs in GitHub secrets. See the [Trusted Publishing setup](https://crates.io/docs/trusted-publishing).
+
+Once the first crate and matching binaries are published, users can run `cargo binstall heraldr` or `cargo install heraldr --locked`. Herdr's standard installer still uses exact-version manifest metadata and falls back to compiling the checkout. Standalone Binstall fails on unsupported targets because compilation is owned by the plugin installer; use Cargo directly on those targets.
+
+If crate publication fails after asset upload, fix the cause and rerun only the failed job. Crate versions are immutable: if Cargo reports that the version is already published, verify that version on crates.io rather than attempting to replace it. Manual build dispatch never publishes a crate.
 
 ## Issues vs. Discussions
 

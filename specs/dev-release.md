@@ -2,7 +2,7 @@
 
 ## Goals
 
-Every release is cut from a clean `main` by a human-gated pipeline that a contributor can rehearse without side effects. The version has one source of truth, CI proves the tree before anything ships, and the published archives are what `herdr plugin install` and `cargo binstall` resolve. Non-goals: nightly or pre-release channels, Homebrew, and crates.io until a user asks.
+Every release is cut from a clean `main` by a human-gated pipeline that a contributor can rehearse without publishing. The version has one source of truth, CI proves the tree before anything ships, and crates.io metadata directs Cargo Binstall to the published archives. Non-goals: nightly or pre-release channels and Homebrew.
 
 ## Requirements
 
@@ -24,3 +24,7 @@ Every release is cut from a clean `main` by a human-gated pipeline that a contri
 - **dev-R016** — Automated checks and CI run each test suite once without interactive tasks or installing Heraldr on the user's `PATH`.
 - **dev-R017** — Local development compiles and installs the checkout before linking it into Herdr, without downloading a published Heraldr binary.
 - **dev-R018** — Installer tests identify simulated installs in their output and keep Cargo and Binstall replacements inside temporary test directories.
+- **dev-R019** — Local checks, CI, and merge gates verify an optimized binary build and compile the packaged crate without publishing.
+- **dev-R020** — Crate publication requires a clean checkout matching its release tag and all four binary archives and checksums uploaded to GitHub.
+- **dev-R021** — The first crate publication uses a confirmed local task and Cargo's configured credentials.
+- **dev-R022** — Enabled OIDC publishing runs only for published releases, after binary uploads, using a short-lived crates.io token.

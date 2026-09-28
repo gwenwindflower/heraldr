@@ -22,6 +22,11 @@ for task in check test 'test:*' release:check; do
 		count="$(printf '%s\n' "$output" | rg -c 'prek run --all-files' || true)"
 		[[ "$count" == 1 ]] || fail "$task must run the hook sweep exactly once (found ${count:-0})"
 	fi
+	[[ "$output" == *'cargo build --locked --release'* ]] || fail "$task omits the optimized build"
+	[[ "$output" == *'cargo publish --dry-run --locked --allow-dirty'* ]] || fail "$task omits crate package verification"
+	if printf '%s\n' "$output" | rg -q 'cargo publish --locked'; then
+		fail "$task uploads a crate"
+	fi
 done
 
 printf 'Automated task selection tests passed.\n'

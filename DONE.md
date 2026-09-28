@@ -2,6 +2,21 @@
 
 Shipped Phases, newest first. Each entry keeps the Phase header, Objectives, and Tasks verbatim with the boxes checked, followed by a short narrative of decisions and surprises.
 
+## Phase 5: Crates.io release publishing ✅
+
+**Requirements**: dev-R019, dev-R020, dev-R021, dev-R022
+
+### Verified crate publication
+
+- [x] Add optimized build and crate package verification to local and CI gates
+- [x] Test release source and artifact checks before crate publication
+- [x] Add confirmed first publication and OIDC release tasks
+- [x] Verify gates and document the first-release setup
+
+The existing `test:*` task group carries optimized builds and packaged-crate compilation into CI and both merge gates. The package include list ships only Rust source, Rust tests, icons, metadata, and user documentation. Dry runs accept uncommitted changes so they can verify the release pipeline's version bump; real publication requires a clean checkout at the release tag and all eight binary assets on GitHub.
+
+The confirmed bootstrap task uses local Cargo credentials because crates.io requires an initial token-based publication. `CRATES_IO_PUBLISHING` gates the OIDC job until the crate and trusted publisher exist. The job runs after asset upload, only for release events, with the `release` environment and a SHA-pinned official authentication action. `release:check` passed, including the publication failure cases, 35 Rust tests, source packaging, and workflow audits. Initial publication and external OIDC configuration remain human steps in Phase 1.
+
 ## Phase 3: Merge and development task isolation ✅
 
 **Requirements**: dev-R014, dev-R015, dev-R016, dev-R017, dev-R018

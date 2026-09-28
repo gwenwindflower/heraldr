@@ -117,6 +117,18 @@ run = "./tests/versioning.sh"
 description = "Verify automated gates select noninteractive tests without installing Heraldr"
 run = "./tests/task-workflows.sh"
 
+[tasks."test:publishing"]
+description = "Test crate publication guards with fake Git and GitHub responses"
+run = "bash tests/publishing.sh"
+
+[tasks."test:build"]
+description = "Verify the optimized binary builds"
+depends = ["build"]
+
+[tasks."test:crate"]
+description = "Compile the packaged crate without uploading it"
+run = "cargo publish --dry-run --locked --allow-dirty"
+
 [tasks.test]
 description = "Run every test suite"
 depends = ["test:*"]
@@ -147,6 +159,11 @@ alias = "ca"
 depends = ["ci-audit:zizmor", "ci-audit:pinact"]
 
 # Release
+
+[tasks."release:bootstrap-crate"]
+description = "Publish the first released crate using local Cargo credentials"
+confirm = "Publish this release to crates.io using your local Cargo credentials?"
+run = ["mise run release:crate-preflight", "cargo publish --locked"]
 
 [tasks."release:check"]
 description = "The full pre-release gate: every check plus both workflow audits"
