@@ -133,6 +133,8 @@ GitHub creates the tag at the default-branch head when it publishes the release.
 
 Rerun failed release jobs from their original event so they retain permission to upload assets: `gh run rerun <run-id> --failed`. To rebuild an existing tag for diagnosis without changing the release, run `gh workflow run release-build.yml -f tag=vX.Y.Z` — it keeps outputs as workflow artifacts.
 
+If binaries built successfully but a workflow bug prevented uploading them, rerunning the original run still uses its original workflow. After fixing the workflow, use `mise run release:recover-assets <run-id>` to upload the existing artifacts. This confirmed task verifies the release event, source commit, all four archives, and their checksums; it refuses to overwrite existing assets and does not publish a crate.
+
 ### First crates.io publication
 
 1. Verify your crates.io email and authenticate locally with `cargo login`.
