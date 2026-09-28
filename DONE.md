@@ -15,7 +15,7 @@ Shipped Phases, newest first. Each entry keeps the Phase header, Objectives, and
 
 Hosted test runners exposed an undeclared ripgrep dependency. Shell suites use standard grep and Bash matching, and all suites passed with ripgrep disabled. Ruleset discovery reads only the latest completed CI push run on main, excluding release jobs attached to the same commit; a regression test checks the generated policy without touching GitHub. The existing jq dependency is declared in mise.
 
-Removed unused Homebrew scaffolding and replaced dry-run publication with Cargo's package verification. `release:check` passed, including 35 Rust tests, shell suites, optimized and packaged builds, and workflow audits. The [tooling audit](docs/tooling-audit.md) records why the shared mise tasks remain a good fit and when dist or Release-plz would justify a migration.
+Removed unused Homebrew scaffolding and replaced dry-run publication with Cargo's package verification. `release:check` passed, including 35 Rust tests, shell suites, optimized and packaged builds, and workflow audits. The tooling audit retained the shared mise tasks; future distribution-tool research lives in the tool system's vault notes.
 
 ## Phase 5: Crates.io release publishing ✅
 

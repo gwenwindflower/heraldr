@@ -22,7 +22,7 @@ Never run `release`, `release:push`, or `release:create`. They push commits and 
 
 ## Hooks guard commits, tasks guard merges
 
-Use a Worktrunk worktree for development and integrate locally with `wt merge`. Mise checks, prek commit hooks, and Worktrunk merge hooks provide local CI. Open a pull request only when the user explicitly requests one; hosted-runner verification alone is not permission to open a PR.
+Use a Worktrunk worktree for development and integrate locally with `wt merge`. Mise checks, prek commit hooks, and Worktrunk merge hooks provide local CI. Suggest a PR when workflow changes, cross-architecture builds, breaking changes, or large refactors need remote verification or visibility. Open a pull request only when the user explicitly requests one.
 
 prek runs file hygiene on every commit (staged files only) and rejects commit subjects git-cliff cannot parse; `mise run hooks:install` wires it into a fresh clone. `wt merge` runs one gate after the rebase: `release:check` when its target is Worktrunk's default branch, otherwise `check`. Never commit with `--no-verify`; fix what the hook reports.
 
