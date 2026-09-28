@@ -16,7 +16,7 @@ Herdr commands (`herdr:*`, `dev:*`) need the Herdr socket, which sandboxed agent
 
 Never run `release`, `release:push`, or `release:create`. They push commits and create public GitHub releases behind mise `confirm` gates that default to no. `release:rehearse` is the dry run: it exercises every read-only step and prints the notes that would ship. Run it when the project looks ready, report what it says, and stop.
 
-`release:bootstrap-crate` is the human-confirmed first crates.io publication. `release:publish-crate` runs only in the release workflow with OIDC credentials, after binary uploads. Never invoke either publication task as a check; `test:crate` is the publication dry run included in `check` and CI. `CRATES_IO_PUBLISHING=true` enables the OIDC job after the first crate exists and its trusted publisher is configured.
+`release:bootstrap-crate` is the human-confirmed first crates.io publication. `release:publish-crate` runs only in the release workflow with OIDC credentials, after binary uploads. Never invoke either publication task as a check; `test:crate` runs `cargo package` to verify the packaged source in `check` and CI. `CRATES_IO_PUBLISHING=true` enables the OIDC job after the first crate exists and its trusted publisher is configured.
 
 `Cargo.toml` is the version's source of truth, read through `version:read`. `version:write` derives `Cargo.lock` and `herdr-plugin.toml` from it; never hand-edit those versions. Report drift with `version:check` and repair it with `version:sync`. `version:bump` belongs to a release, not to ordinary work.
 
@@ -25,6 +25,8 @@ Never run `release`, `release:push`, or `release:create`. They push commits and 
 prek runs file hygiene on every commit (staged files only) and rejects commit subjects git-cliff cannot parse; `mise run hooks:install` wires it into a fresh clone. `wt merge` runs one gate after the rebase: `release:check` when its target is Worktrunk's default branch, otherwise `check`. Never commit with `--no-verify`; fix what the hook reports.
 
 Interactive Cargo tasks live under `dev:`; `test:*` is safe for unattended gates and CI. Installer tests use fake Cargo/Binstall in temporary directories. Local reloads use `cargo install --path .` and `herdr plugin link`, which does not execute manifest build hooks.
+
+Shell tasks and tests use Bash and standard Unix utilities; use `grep -F` for literals and `grep -E` for regular expressions. Developer search preferences do not make tools such as ripgrep runtime prerequisites. Declare nonstandard task dependencies in mise.
 
 ## Workflow changes
 

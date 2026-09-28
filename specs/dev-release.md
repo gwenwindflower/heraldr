@@ -28,3 +28,5 @@ Every release is cut from a clean `main` by a human-gated pipeline that a contri
 - **dev-R020** — Crate publication requires a clean checkout matching its release tag and all four binary archives and checksums uploaded to GitHub.
 - **dev-R021** — The first crate publication uses a confirmed local task and Cargo's configured credentials.
 - **dev-R022** — Enabled OIDC publishing runs only for published releases, after binary uploads, using a short-lived crates.io token.
+- **dev-R023** — Shell tests run with Bash, standard Unix utilities, and the declared task tools; ripgrep is not a prerequisite.
+- **dev-R024** — Repository provisioning derives required checks only from the CI workflow on `main`, excluding release jobs.

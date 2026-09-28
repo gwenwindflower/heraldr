@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Create or update the main-branch ruleset, requiring the checks CI has already reported on main"
+#MISE description="Create or update the main-branch ruleset from the latest completed CI run"
 
 set -euo pipefail
 cd "${MISE_PROJECT_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
@@ -8,10 +8,14 @@ repo="$(gh repo view --json nameWithOwner --jq .nameWithOwner)"
 ruleset_file=.github/rulesets/main.json
 name="$(jq -r .name "$ruleset_file")"
 
-checks="$(gh api "repos/$repo/commits/main/check-runs" --paginate \
-	--jq '[.check_runs[] | select(.app.slug == "github-actions") | .name] | unique')"
+run="$(gh run list --repo "$repo" --workflow ci.yml --branch main --event push --status completed --limit 1 --json databaseId --jq '.[0].databaseId // empty')"
+if [[ -z "$run" ]]; then
+	printf 'No completed CI run found on main yet; push once and let CI finish, then rerun.\n' >&2
+	exit 1
+fi
+checks="$(gh run view "$run" --repo "$repo" --json jobs --jq '[.jobs[].name] | unique')"
 if [[ "$checks" == "[]" ]]; then
-	printf 'No check runs found on main yet; push once and let CI finish, then rerun.\n' >&2
+	printf 'CI run %s contains no jobs; refusing to configure empty required checks.\n' "$run" >&2
 	exit 1
 fi
 

@@ -113,7 +113,7 @@ source_root="$(make_case source)"
 write_cargo "$source_root"
 run_installer "$source_root" >"$source_root/output.log" 2>&1
 [[ "$(<"$source_root/install.log")" == 'install --path . --locked --force' ]]
-rg -q 'Cargo Binstall.*https://github.com/gwenwindflower/heraldr#install' "$source_root/output.log"
+grep -Eq 'Cargo Binstall.*https://github.com/gwenwindflower/heraldr#install' "$source_root/output.log"
 
 fallback_root="$(make_case fallback)"
 write_cargo "$fallback_root"
@@ -126,8 +126,8 @@ if (cd "$missing_cargo_root" && PATH="$missing_cargo_root/fakebin" ./scripts/ins
 	printf 'Installer succeeded without Cargo.\n' >&2
 	exit 1
 fi
-rg -q 'Cargo.*https://github.com/gwenwindflower/heraldr#install' "$missing_cargo_root/output.log"
-rg -q 'https://www.rust-lang.org/tools/install' "$missing_cargo_root/output.log"
+grep -Eq 'Cargo.*https://github.com/gwenwindflower/heraldr#install' "$missing_cargo_root/output.log"
+grep -Fq 'https://www.rust-lang.org/tools/install' "$missing_cargo_root/output.log"
 
 wrong_version_root="$(make_case wrong-version)"
 cat >"$wrong_version_root/fakebin/cargo" <<'SCRIPT'
@@ -142,7 +142,7 @@ if run_installer "$wrong_version_root" >"$wrong_version_root/output.log" 2>&1; t
 	printf 'Installer accepted a mismatched version.\n' >&2
 	exit 1
 fi
-rg -q 'expected heraldr 0.0.1.*actual heraldr 0.0.2' "$wrong_version_root/output.log"
+grep -Eq 'expected heraldr 0.0.1.*actual heraldr 0.0.2' "$wrong_version_root/output.log"
 
 missing_binary_root="$(make_case missing-binary)"
 cp "$wrong_version_root/fakebin/cargo" "$missing_binary_root/fakebin/cargo"
@@ -150,6 +150,6 @@ if run_installer "$missing_binary_root" >"$missing_binary_root/output.log" 2>&1;
 	printf 'Installer succeeded without a binary on PATH.\n' >&2
 	exit 1
 fi
-rg -q 'CARGO_HOME/bin.*PATH' "$missing_binary_root/output.log"
+grep -Eq 'CARGO_HOME/bin.*PATH' "$missing_binary_root/output.log"
 
 printf 'Binary installer tests passed.\n'

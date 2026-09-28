@@ -2,7 +2,6 @@
 #MISE description="Apply the standard GitHub repository settings: squash or rebase merges only, linear-friendly defaults, no wiki or projects"
 #USAGE flag "--description <text>" help="Repository description"
 #USAGE flag "--topics <list>" help="Comma-separated topics to add"
-#USAGE flag "--homebrew" help="Publish to the Homebrew tap on release (sets the HOMEBREW_TAP variable)"
 
 set -euo pipefail
 cd "${MISE_PROJECT_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
@@ -28,10 +27,5 @@ if [[ -n "${usage_topics:-}" ]]; then
 fi
 
 gh repo edit "$repo" "${args[@]}"
-
-if [[ "${usage_homebrew:-false}" == true ]]; then
-	gh variable set HOMEBREW_TAP --repo "$repo" --body true
-	printf 'HOMEBREW_TAP=true; add the HOMEBREW_TAP_TOKEN secret before the first release.\n'
-fi
 
 printf 'Settings applied to %s.\n' "$repo"

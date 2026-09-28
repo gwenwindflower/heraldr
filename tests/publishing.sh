@@ -39,7 +39,7 @@ expect_failure() {
     printf 'Publication guard unexpectedly accepted %s\n' "$1" >&2
     exit 1
   fi
-  rg -q "$2" "$sandbox/output"
+  grep -Fq "$2" "$sandbox/output"
 }
 run_check
 export TEST_DIRTY=' M Cargo.toml'
@@ -60,5 +60,5 @@ if GITHUB_ACTIONS=false GITHUB_EVENT_NAME=workflow_dispatch CARGO_REGISTRY_TOKEN
   printf 'OIDC publishing accepted a non-release invocation.\n' >&2
   exit 1
 fi
-rg -q 'requires a GitHub release job' "$sandbox/output"
+grep -Fq 'requires a GitHub release job' "$sandbox/output"
 printf 'Crate publication guard tests passed.\n'
