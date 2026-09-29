@@ -41,6 +41,22 @@ alias = "t"
 run = "cargo pretty test --all-features --locked"
 raw = true
 
+# Dependencies
+
+[tasks."deps:check"]
+description = "Preview compatible lockfile updates and dependency requirement upgrades, including breaking versions"
+tools = { "cargo:cargo-edit" = "latest" }
+run = ["cargo update --dry-run", "cargo upgrade --dry-run --incompatible allow"]
+
+[tasks."deps:update"]
+description = "Update Cargo.lock to the latest versions allowed by Cargo.toml"
+run = "cargo update"
+
+[tasks."deps:audit"]
+description = "Audit Cargo.lock for known vulnerabilities and yanked crates"
+tools = { "cargo:cargo-audit" = "latest" }
+run = "cargo audit"
+
 # Herdr
 [tasks."herdr:link"]
 description = "Point Herdr at the checkout, keeping herdr-plugin.toml and icons.conf local"

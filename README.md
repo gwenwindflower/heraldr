@@ -20,6 +20,7 @@ Heraldr supports Linux and macOS. Its icons require a terminal font with Nerd Fo
 - [Local development](#local-development)
   - [Switch between local and released Heraldr](#switch-between-local-and-released-heraldr)
   - [Checks](#checks)
+  - [Dependencies](#dependencies)
   - [Pretty tasks](#pretty-tasks)
 - [Releases](#releases)
   - [First crates.io publication](#first-cratesio-publication)
@@ -101,7 +102,7 @@ That installs the linters and release tooling `mise.toml` declares, so your mach
 
 Already have some of those on your `PATH`? Copy `mise.local.toml.example` to `mise.local.toml` (gitignored) and list them under `disable_tools`. mise then skips installing them here and tasks use whatever `command -v` finds; CI installs whatever `mise.toml` resolves, so keep yours current.
 
-`mise tasks` lists every task with its description; `mise tasks info <task>` prints one task's full definition, arguments, and source. Tasks are grouped by prefix — `dev:`, `herdr:`, `lint:`, `test:`, `ci-audit:`, `version:`, `release:`, `repo:` — and the common ones carry single-letter aliases.
+`mise tasks` lists every task with its description; `mise tasks info <task>` prints one task's full definition, arguments, and source. Tasks are grouped by prefix — `dev:`, `deps:`, `herdr:`, `lint:`, `test:`, `ci-audit:`, `version:`, `release:`, `repo:` — and the common ones carry single-letter aliases.
 
 Put the checkout in front of Herdr:
 
@@ -126,6 +127,19 @@ That stops the running watcher, installs the checkout's binary on your `PATH`, a
 The gate includes an optimized binary build and `cargo package`, which compiles the packaged source without uploading it. Package verification allows a dirty checkout, so it can check work in progress and the release pipeline's uncommitted version bump. Actual publication requires a clean checkout matching the release tag.
 
 `wt merge` runs one gate after rebasing onto the target: `check` for a feature branch, or `release:check` (local checks plus workflow audits) for the default branch. Commit hooks still check staged files. These gates use plain Cargo output and never install Heraldr on your `PATH`; installer tests simulate Cargo and Binstall inside temporary directories.
+
+### Dependencies
+
+```bash
+mise run deps:check
+mise run deps:update
+mise run deps:audit
+mise run release:check
+```
+
+`deps:check` previews compatible lockfile updates and dependency requirement upgrades, including breaking versions, without editing either Cargo file. `deps:update` updates only `Cargo.lock` within the ranges declared in `Cargo.toml`; review breaking upgrades separately. `deps:audit` checks locked dependencies against RustSec advisories and checks for yanked crates. Review and commit dependency changes before cutting a release.
+
+Mise installs cargo-edit for `deps:check` and cargo-audit for `deps:audit` on demand. These maintenance tasks run explicitly; release gates do not update dependencies.
 
 ### Pretty tasks
 
