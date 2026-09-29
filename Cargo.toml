@@ -1,6 +1,6 @@
 [package]
 name = "heraldr"
-version = "0.0.1"
+version = "0.0.2"
 edition = "2024"
 description = "Herdr tab, workspace, and agent chrome: [N] <icon> <name> labels driven by the live session"
 authors = ["Gwyneth Windflower"]

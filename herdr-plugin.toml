@@ -1,6 +1,6 @@
 id = "heraldr"
 name = "Heraldr"
-version = "0.0.1"
+version = "0.0.2"
 min_herdr_version = "0.7.5"
 description = "Dress herdr tabs as [N] <icon> <program> and feed sidebar rows composable tokens: $jump (workspace jump number) plus $space/$worktree (repo + nested worktree names for agent rows). Labels stay bare for the agents panel and navigator; manual renames win. Icons reload from icons.conf with a compiled fallback."
 platforms = ["linux", "macos"]
