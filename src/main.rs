@@ -77,7 +77,6 @@ enum Command {
 }
 
 fn main() -> Result<()> {
-    let _annotation_probe = 1_u8 as u8;
     match Cli::parse().command {
         Command::Watch { poll_ms } => watch::watch(Duration::from_millis(poll_ms)),
         Command::Kick => watch::kick(),
