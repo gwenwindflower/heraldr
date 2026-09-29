@@ -2,14 +2,13 @@
 name = "heraldr"
 version = "0.0.2"
 edition = "2024"
-description = "Herdr tab, workspace, and agent chrome: [N] <icon> <name> labels driven by the live session"
-authors = ["Gwyneth Windflower"]
-license = "GPL-3.0-or-later"
-repository = "https://github.com/gwenwindflower/heraldr"
+description = "Reactive labels and chrome for Herdr tabs, workspaces, and agents"
 readme = "README.md"
-keywords = ["herdr", "plugin", "terminal", "cli"]
+repository = "https://github.com/gwenwindflower/heraldr"
+license = "GPL-3.0-or-later"
+keywords = ["herdr", "herdr-plugin"]
 categories = ["command-line-utilities"]
-include = ["src/**", "tests/*.rs", "icons.conf", "Cargo.toml", "Cargo.lock", "README.md", "LICENSE"]
+include = ["Cargo.lock", "Cargo.toml", "LICENSE", "README.md", "icons.conf", "src/**", "tests/*.rs"]
 
 [package.metadata.binstall]
 pkg-url = "{ repo }/releases/download/v{ version }/{ name }-{ target }-v{ version }{ archive-suffix }"
@@ -24,10 +23,10 @@ libc = "0.2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
-[profile.release]
-lto = true
-strip = true
-codegen-units = 1
-
 [lints.clippy]
 pedantic = "warn"
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
