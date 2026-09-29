@@ -2,6 +2,21 @@
 
 Shipped Phases, newest first. Each entry keeps the Phase header, Objectives, and Tasks verbatim with the boxes checked, followed by a short narrative of decisions and surprises.
 
+## Phase 7: Shared task test ownership
+
+**Requirements**: dev-R024, dev-R025
+
+### Upstream generic task coverage
+
+- [x] Verify equivalent label, ruleset, and recovery coverage in `_tool`
+- [x] Remove generic suites and retain project integration tests
+- [x] Adopt task-maintenance guidance and the Rust shebang exclusion
+- [x] Run the project gates and record upstream ownership
+
+Reviewed `_tool` at `afe5f47`; template commit `e93f20d` owns the label, ruleset, and recovery suites and their shared task fixes. Those tests run in template CI rather than being copied into every project. Heraldr retains version synchronization, crate publication, installer, manifest, and automated task-selection coverage because those tests express its Cargo and Herdr integration contracts. Its shared task implementations remain equivalent to the upstreamed versions, with repository names filled in.
+
+The full local gate passed, including 35 Rust tests, retained shell suites, optimized and packaged builds, and file checks. Adopted wtherdr's Rust exclusion for the executable-shebang hook. The project-workflows guidance requires task changes and tests to evolve together, reusable improvements to flow upstream, and periodic comparison during workflow maintenance or release preparation after a long gap.
+
 ## Phase 1: Release readiness ✅
 
 **Requirements**: R001, dev-R001, dev-R008, dev-R009, dev-R012

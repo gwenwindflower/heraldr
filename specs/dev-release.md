@@ -30,3 +30,4 @@ Every release is cut from a clean `main` by a human-gated pipeline that a contri
 - **dev-R022** — Enabled OIDC publishing runs only for published releases, after binary uploads, using a short-lived crates.io token.
 - **dev-R023** — Shell tests run with Bash, standard Unix utilities, and the declared task tools; ripgrep is not a prerequisite.
 - **dev-R024** — Repository provisioning derives required checks only from the CI workflow on `main`, excluding release jobs.
+- **dev-R025** — Generic inherited task behavior is tested in `_tool`; Heraldr retains tests of project integration and intentional local divergences.

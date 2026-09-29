@@ -34,6 +34,10 @@ Shell tasks and tests use Bash and standard Unix utilities; use `grep -F` for li
 
 Every `uses:` under `.github/workflows/` stays pinned to a commit SHA with a trailing version comment, and every change passes `mise run ci-audit`.
 
+## Shared task maintenance
+
+Shared label, ruleset, and artifact-recovery tests live in `gwenwindflower/_tool` under `template/tests/`. Evolve those tests with shared task behavior and upstream reusable fixes or useful generic tasks. Keep Heraldr's versioning, publication, installer, and task-selection contracts local. During task maintenance or release preparation after a long gap, compare upstream changes and record adopted fixes and intentional differences in `DONE.md`.
+
 ## Plugin contract
 
 Manifest entrypoints call `heraldr` from `PATH`; the build hook (`scripts/install-binary.sh`) owns putting the exact version there. `tests/plugin-manifest.sh` and `tests/install-binary.sh` enforce both. Icons live in `icons.conf`; the binary carries a compiled copy as a fallback.

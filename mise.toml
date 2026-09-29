@@ -131,18 +131,6 @@ run = "./tests/task-workflows.sh"
 description = "Test crate publication guards with fake Git and GitHub responses"
 run = "bash tests/publishing.sh"
 
-[tasks."test:recovery"]
-description = "Verify release artifact recovery rejects mismatched or corrupt inputs"
-run = "bash tests/release-recovery.sh"
-
-[tasks."test:rulesets"]
-description = "Verify branch rules require CI checks without release-only jobs"
-run = "bash tests/repo-rulesets.sh"
-
-[tasks."test:labels"]
-description = "Verify repository labels reconcile against the declared list"
-run = "bash tests/repo-labels.sh"
-
 [tasks."test:build"]
 description = "Verify the optimized binary builds"
 depends = ["build"]
