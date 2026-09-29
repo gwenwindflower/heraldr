@@ -11,6 +11,23 @@ Heraldr gives [Herdr](https://herdr.dev) tabs and sidebar rows compact, live con
 
 Heraldr supports Linux and macOS. Its icons require a terminal font with Nerd Font glyphs.
 
+<!-- toc -->
+
+- [Install](#install)
+  - [Update](#update)
+- [Actions](#actions)
+  - [Configuration and state](#configuration-and-state)
+- [Local development](#local-development)
+  - [Switch between local and released Heraldr](#switch-between-local-and-released-heraldr)
+  - [Checks](#checks)
+  - [Pretty tasks](#pretty-tasks)
+- [Releases](#releases)
+  - [First crates.io publication](#first-cratesio-publication)
+- [Issues vs. Discussions](#issues-vs-discussions)
+- [License](#license)
+
+<!-- tocstop -->
+
 ## Install
 
 You need [Herdr](https://herdr.dev/docs/install/) 0.7.5 or later, Git, and a compatible [Rust toolchain with Cargo](https://www.rust-lang.org/tools/install). Cargo's binary directory (`$CARGO_HOME/bin`, normally `~/.cargo/bin`) must be on Herdr's `PATH`. [Cargo Binstall](https://github.com/cargo-bins/cargo-binstall#installation) is optional, but installs a release artifact much faster than compiling from source. Install the plugin:
@@ -155,4 +172,6 @@ Discussions are for ideas, questions, and "what if Heraldr did X?". Issues are f
 
 ## License
 
-MIT. See [LICENSE](./LICENSE).
+Copyright (C) 2026 Gwyneth Windflower.
+
+Licensed under the GNU General Public License, version 3 or any later version (`GPL-3.0-or-later`). See [LICENSE](./LICENSE).
