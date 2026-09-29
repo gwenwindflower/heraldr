@@ -14,6 +14,8 @@ concurrency:
 
 env:
   MISE_TRUSTED_CONFIG_PATHS: ${{ github.workspace }}
+  MISE_TASK_OUTPUT: interleave
+  MISE_JOBS: "1"
 
 jobs:
   check:
