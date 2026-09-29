@@ -90,7 +90,7 @@ The watcher retries interrupted event subscriptions while retaining its session 
 
 ## Local development
 
-Development runs on [mise](https://mise.jdx.dev), which owns both the toolchain and the task list. Clone the repository, then:
+Development runs on [mise](https://mise.jdx.dev), which manages the shared development tools and task list. Clone the repository, then:
 
 ```bash
 mise trust
@@ -130,6 +130,13 @@ The gate includes an optimized binary build and `cargo package`, which compiles 
 
 ### Dependencies
 
+Install [cargo-edit](https://github.com/killercup/cargo-edit#installation) for upgrade previews and [cargo-audit](https://github.com/rustsec/rustsec/tree/main/cargo-audit#installation) for vulnerability checks:
+
+```bash
+cargo install cargo-edit --locked
+cargo install cargo-audit --locked
+```
+
 ```bash
 mise run deps:check
 mise run deps:update
@@ -139,7 +146,9 @@ mise run release:check
 
 `deps:check` previews compatible lockfile updates and dependency requirement upgrades, including breaking versions, without editing either Cargo file. `deps:update` updates only `Cargo.lock` within the ranges declared in `Cargo.toml`; review breaking upgrades separately. `deps:audit` checks locked dependencies against RustSec advisories and checks for yanked crates. Review and commit dependency changes before cutting a release.
 
-Mise installs cargo-edit for `deps:check` and cargo-audit for `deps:audit` on demand. These maintenance tasks run explicitly; release gates do not update dependencies.
+These maintenance tasks use the Cargo tools on your `PATH` and run explicitly. CI and release gates need neither cargo-edit nor cargo-audit, and do not update dependencies.
+
+[Cargo Binstall](https://github.com/cargo-bins/cargo-binstall#installation) is optional for plugin installation and required for `dev:released`. Install it with `brew install cargo-binstall` on macOS, or follow the upstream installation script instructions on Linux. CI builds with Cargo and tests the installer with fake Cargo/Binstall commands, so it does not need Binstall. Mise does not install these optional Cargo tools.
 
 ### Pretty tasks
 
