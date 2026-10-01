@@ -2,6 +2,18 @@
 
 Shipped Phases, newest first. Each entry keeps the Phase header, Objectives, and Tasks verbatim with the boxes checked, followed by a short narrative of decisions and surprises.
 
+## Phase 8: Gate CI on workflow audits
+
+**Requirements**: dev-R026, dev-R027
+
+### Audit before checks and tests
+
+- [x] Gate the check job on the workflow audit job
+- [x] Run the zizmor commit hook offline
+- [x] Validate workflows with zizmor and pinact
+
+Adopted `_tool` PR #1 (`fix/audit-gate` at `9143cca`). Heraldr already allowed `ci-audit:zizmor` to write its cache, so the remaining changes were the `needs: audit` edge and the offline hook. Tests still depend on checks, so a failed audit skips both. The template's `template.yml` and `:::` task-separator fix apply only to its own maintenance matrix.
+
 ## Phase 7: Shared task test ownership
 
 **Requirements**: dev-R024, dev-R025

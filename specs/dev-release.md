@@ -31,3 +31,5 @@ Every release is cut from a clean `main` by a human-gated pipeline that a contri
 - **dev-R023** — Shell tests run with Bash, standard Unix utilities, and the declared task tools; ripgrep is not a prerequisite.
 - **dev-R024** — Repository provisioning derives required checks only from the CI workflow on `main`, excluding release jobs.
 - **dev-R025** — Generic inherited task behavior is tested in `_tool`; Heraldr retains tests of project integration and intentional local divergences.
+- **dev-R026** — CI checks and tests run only after a separate workflow audit job succeeds; a failed audit skips them.
+- **dev-R027** — CI workflow audits run online; `ci-audit:zizmor` may write only to zizmor's cache, and commit hooks run zizmor offline.
