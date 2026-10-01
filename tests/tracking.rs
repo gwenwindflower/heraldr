@@ -1,5 +1,5 @@
 use std::io::{BufRead, BufReader, Write};
-use std::os::unix::net::UnixListener;
+use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -36,6 +36,69 @@ struct Herdr {
     watcher: Option<Child>,
 }
 
+fn answer(
+    mut stream: UnixStream,
+    session: &Mutex<Session>,
+    subscriptions: &mut Vec<UnixStream>,
+) -> std::io::Result<()> {
+    stream.set_nonblocking(false)?;
+    stream.set_read_timeout(Some(Duration::from_secs(2)))?;
+    let mut line = String::new();
+    BufReader::new(&stream).read_line(&mut line)?;
+    if !line.ends_with('\n') {
+        return Ok(());
+    }
+    let request: Value = serde_json::from_str(&line).unwrap();
+    let method = request["method"].as_str().unwrap();
+    let mut session = session.lock().unwrap();
+    let result = match method {
+        "session.snapshot" => json!({ "snapshot": {
+            "focused_tab_id": session.tab_id, "focused_pane_id": "w1:p1",
+            "workspaces": [{ "workspace_id": "w1", "label": "project" }],
+            "tabs": [{ "workspace_id": "w1", "tab_id": session.tab_id,
+                "label": session.label, "pane_count": 1, "focused": true }],
+            "panes": [{ "workspace_id": "w1", "tab_id": session.tab_id,
+                "pane_id": "w1:p1", "focused": true }]
+        }}),
+        "pane.process_info" => {
+            session.inspections += 1;
+            let processes = if session.leader_missing {
+                json!([])
+            } else {
+                json!([{ "pid": 42, "argv0": session.program }])
+            };
+            json!({ "process_info": {
+                "foreground_process_group_id": 42,
+                "foreground_processes": processes
+            }})
+        }
+        "tab.rename" => {
+            session.renames += 1;
+            if !session.rename_fails {
+                session.label = request["params"]["label"].as_str().unwrap().into();
+            }
+            json!({ "tab": { "tab_id": session.tab_id, "label": session.label } })
+        }
+        "events.subscribe" | "workspace.report_metadata" | "pane.report_metadata" => {
+            json!({})
+        }
+        other => panic!("unexpected method: {other}"),
+    };
+    let failed = (method == "pane.process_info" && session.inspection_fails)
+        || (method == "tab.rename" && session.rename_fails);
+    let response = if failed {
+        json!({ "id": request["id"], "error": { "message": "temporarily unavailable" } })
+    } else {
+        json!({ "id": request["id"], "result": result })
+    };
+    writeln!(stream, "{response}")?;
+    if method == "events.subscribe" {
+        session.subscriptions += 1;
+        subscriptions.push(stream);
+    }
+    Ok(())
+}
+
 impl Herdr {
     fn start() -> Self {
         static NEXT: AtomicUsize = AtomicUsize::new(0);
@@ -66,68 +129,16 @@ impl Herdr {
                         session.disconnect = false;
                     }
                 }
-                let (mut stream, _) = match listener.accept() {
-                    Ok(connection) => connection,
+                let stream = match listener.accept() {
+                    Ok((stream, _)) => stream,
                     Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => {
                         thread::sleep(Duration::from_millis(2));
                         continue;
                     }
                     Err(err) => panic!("accepting test connection: {err}"),
                 };
-                stream.set_nonblocking(false).unwrap();
-                stream
-                    .set_read_timeout(Some(Duration::from_secs(2)))
-                    .unwrap();
-                let mut line = String::new();
-                BufReader::new(&stream).read_line(&mut line).unwrap();
-                let request: Value = serde_json::from_str(&line).unwrap();
-                let method = request["method"].as_str().unwrap();
-                let mut session = peer_session.lock().unwrap();
-                let result = match method {
-                    "session.snapshot" => json!({ "snapshot": {
-                        "focused_tab_id": session.tab_id, "focused_pane_id": "w1:p1",
-                        "workspaces": [{ "workspace_id": "w1", "label": "project" }],
-                        "tabs": [{ "workspace_id": "w1", "tab_id": session.tab_id,
-                            "label": session.label, "pane_count": 1, "focused": true }],
-                        "panes": [{ "workspace_id": "w1", "tab_id": session.tab_id,
-                            "pane_id": "w1:p1", "focused": true }]
-                    }}),
-                    "pane.process_info" => {
-                        session.inspections += 1;
-                        let processes = if session.leader_missing {
-                            json!([])
-                        } else {
-                            json!([{ "pid": 42, "argv0": session.program }])
-                        };
-                        json!({ "process_info": {
-                            "foreground_process_group_id": 42,
-                            "foreground_processes": processes
-                        }})
-                    }
-                    "tab.rename" => {
-                        session.renames += 1;
-                        if !session.rename_fails {
-                            session.label = request["params"]["label"].as_str().unwrap().into();
-                        }
-                        json!({ "tab": { "tab_id": session.tab_id, "label": session.label } })
-                    }
-                    "events.subscribe" | "workspace.report_metadata" | "pane.report_metadata" => {
-                        json!({})
-                    }
-                    other => panic!("unexpected method: {other}"),
-                };
-                let failed = (method == "pane.process_info" && session.inspection_fails)
-                    || (method == "tab.rename" && session.rename_fails);
-                let response = if failed {
-                    json!({ "id": request["id"], "error": { "message": "temporarily unavailable" } })
-                } else {
-                    json!({ "id": request["id"], "result": result })
-                };
-                writeln!(stream, "{response}").unwrap();
-                if method == "events.subscribe" {
-                    session.subscriptions += 1;
-                    subscriptions.push(stream);
-                }
+                // A watcher killed mid-request leaves a dead socket; its io errors end only that connection.
+                let _ = answer(stream, &peer_session, &mut subscriptions);
             }
         });
         Self {
