@@ -58,7 +58,7 @@ body:
     attributes:
       label: Environment
       description: OS, shell, and anything else that might be relevant (runtime or toolchain version, terminal emulator, etc.).
-      placeholder: e.g. macOS 15, fish 4.0, heraldr 0.1.0
+      placeholder: e.g. macOS 15, fish 4.0, heraldr 0.0.1
     validations:
       required: true
 

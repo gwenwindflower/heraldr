@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #MISE description="Report the declared version and any drift in the files derived from it"
-#USAGE arg "[tag]" help="Also assert the project declares this release, as in v0.1.0"
+#USAGE arg "[tag]" help="Also assert the project declares this release, as in v0.0.1"
 
 set -euo pipefail
 cd "${MISE_PROJECT_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
