@@ -68,6 +68,7 @@ jobs:
 
   publish:
     name: Upload release assets
+    environment: release
     if: github.event_name == 'release'
     needs: build
     runs-on: ubuntu-24.04

@@ -33,3 +33,4 @@ Every release is cut from a clean `main` by a human-gated pipeline that a contri
 - **dev-R025** — Generic inherited task behavior is tested in `_tool`; Heraldr retains tests of project integration and intentional local divergences.
 - **dev-R026** — CI checks and tests run only after a separate workflow audit job succeeds; a failed audit skips them.
 - **dev-R027** — CI workflow audits run online; `ci-audit:zizmor` may write only to zizmor's cache, and commit hooks run zizmor offline.
+- **dev-R028** — Publishing jobs use the release environment.

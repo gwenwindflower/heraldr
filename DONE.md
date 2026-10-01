@@ -2,6 +2,22 @@
 
 Shipped Phases, newest first. Each entry keeps the Phase header, Objectives, and Tasks verbatim with the boxes checked, followed by a short narrative of decisions and surprises.
 
+## Phase 9: Rust template setup alignment
+
+**Requirements**: dev-R008, dev-R009, dev-R022, dev-R025, dev-R026, dev-R028
+
+### Complete the shared Rust setup
+
+- [x] Compare shared tasks and Rust setup with _tool
+- [x] Align CI audit and publishing dependencies
+- [x] Run gates and record intentional template differences
+
+Reviewed _tool at 8eaa822099795ad42fb4e74a5348e71ad2030cf5 and the project-workflows Rust kit. Heraldr already carries the version hook interface, crate bootstrap and OIDC publishing, four release targets, packaging and artifact recovery tasks, problem matchers, weekly CI cache rotation, and shared task test ownership.
+
+Assigned binary uploads to the release environment; the audit dependency is also covered by Phase 8. Added project packaging coverage that verifies archive contents, executable permissions, and checksums. The missing-version-task error identifies the Rust task to restore.
+
+Intentional template differences remain Herdr manifest versioning, binaries in target/release, plugin-owned source compilation fallback, open contribution policy, no Homebrew, and sequential unprefixed CI output for Rust annotations. The full release:check gate passed with 35 Rust tests, retained shell suites, optimized and packaged builds, and workflow audits; the added packaging check passed separately.
+
 ## Phase 8: Gate CI on workflow audits
 
 **Requirements**: dev-R026, dev-R027

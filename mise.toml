@@ -131,6 +131,10 @@ run = "./tests/task-workflows.sh"
 description = "Test crate publication guards with fake Git and GitHub responses"
 run = "bash tests/publishing.sh"
 
+[tasks."test:packaging"]
+description = "Verify release archives contain the binary and a matching checksum"
+run = "bash tests/packaging.sh"
+
 [tasks."test:build"]
 description = "Verify the optimized binary builds"
 depends = ["build"]

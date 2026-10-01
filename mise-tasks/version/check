@@ -8,7 +8,7 @@ cd "${MISE_PROJECT_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 expected="${usage_tag:-${1:-}}"
 
 if [[ ! -x mise-tasks/version/read ]]; then
-	printf 'No language kit installed: mise-tasks/version/read is missing. See docs/bootstrap.md.\n' >&2
+	printf 'version:read is missing; restore the Rust version task before checking releases.\n' >&2
 	exit 1
 fi
 version="$(mise-tasks/version/read)"
