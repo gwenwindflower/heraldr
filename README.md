@@ -90,7 +90,7 @@ The watcher retries interrupted event subscriptions while retaining its session 
 
 ## Local development
 
-Development runs on [mise](https://mise.jdx.dev), which manages the shared development tools and task list. Clone the repository, then:
+Development runs on [mise](https://mise.jdx.dev), which owns the task list. Tasks use tools already on your `PATH`. For missing development tools or a project-local version, uncomment their entries under `[tools]` in `mise.toml`, then:
 
 ```bash
 mise trust
@@ -98,9 +98,9 @@ mise install
 mise run hooks:install
 ```
 
-That installs the linters and release tooling `mise.toml` declares, so your machine and CI run the same tools. Rust comes from rustup on your `PATH`; `rust-toolchain.toml` selects stable with clippy and rustfmt. Herdr itself is the other prerequisite mise does not manage.
+`mise install` installs only active declarations. Rust comes from rustup on your `PATH`; `rust-toolchain.toml` selects stable with clippy and rustfmt. Herdr itself is the other prerequisite mise does not manage.
 
-Already have some of those on your `PATH`? Copy `mise.local.toml.example` to `mise.local.toml` (gitignored) and list them under `disable_tools`. mise then skips installing them here and tasks use whatever `command -v` finds; CI installs whatever `mise.toml` resolves, so keep yours current.
+Keep development opt-ins local to the checkout: committed `mise.toml` activates only build or run dependencies. CI selects `mise.ci.toml` with `MISE_ENV=ci` to install its development tools; keep that overlay aligned when changing the tool list or versions. Plugin installs do not opt into the development toolchain.
 
 `mise tasks` lists every task with its description; `mise tasks info <task>` prints one task's full definition, arguments, and source. Tasks are grouped by prefix — `dev:`, `deps:`, `herdr:`, `lint:`, `test:`, `ci-audit:`, `version:`, `release:`, `repo:` — and the common ones carry single-letter aliases.
 

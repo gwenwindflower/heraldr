@@ -28,7 +28,7 @@ prek runs file hygiene on every commit (staged files only) and rejects commit su
 
 Interactive Cargo tasks live under `dev:`; `test:*` is safe for unattended gates and CI. Installer tests use fake Cargo/Binstall in temporary directories. Local reloads use `cargo install --path .` and `herdr plugin link`, which does not execute manifest build hooks.
 
-Shell tasks and tests use Bash and standard Unix utilities; use `grep -F` for literals and `grep -E` for regular expressions. Developer search preferences do not make tools such as ripgrep runtime prerequisites. Declare nonstandard task dependencies in mise.
+Shell tasks and tests use Bash and standard Unix utilities; use `grep -F` for literals and `grep -E` for regular expressions. Developer search preferences do not make tools such as ripgrep runtime prerequisites. Keep development tools commented in committed `mise.toml`; active declarations are for build or run dependencies. CI selects `mise.ci.toml` with `MISE_ENV=ci`; keep its development tools and versions aligned.
 
 ## Workflow changes
 
