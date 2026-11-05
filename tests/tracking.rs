@@ -526,3 +526,40 @@ fn reset_recovers_a_disabled_tab_while_another_session_reconciles() {
     first.reconcile();
     assert!(first.label().ends_with(" yazi"));
 }
+
+#[test]
+fn owned_composed_labels_survive_missing_foreground_samples() {
+    for tokens in [json!(["$program", "$jump"]), json!(["$program"])] {
+        let herdr = Herdr::start();
+        let config = herdr.root.join("config");
+        std::fs::create_dir_all(&config).unwrap();
+        std::fs::write(
+            config.join("config.json"),
+            json!({"tab_label": tokens}).to_string(),
+        )
+        .unwrap();
+        let reconcile = || {
+            let output = herdr
+                .command("reconcile")
+                .env("HERDR_PLUGIN_CONFIG_DIR", &config)
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        };
+        reconcile();
+        let label = herdr.label();
+        herdr.change(|session| session.inspection_fails = true);
+        reconcile();
+        assert_eq!(herdr.label(), label);
+        herdr.change(|session| {
+            session.inspection_fails = false;
+            session.program = "nvim".into();
+        });
+        reconcile();
+        assert!(herdr.label().starts_with("nvim"));
+    }
+}

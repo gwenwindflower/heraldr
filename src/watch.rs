@@ -24,6 +24,7 @@ use crate::reconcile::Pass;
 use crate::rpc::Client;
 use crate::snapshot::{Snapshot, foreground_program};
 use crate::state::{Store, session_key, state_dir};
+use crate::titles;
 
 /// Everything that can change a label or a position. The subscription surface
 /// is a superset of what plugin [[events]] deliver — pane.updated and
@@ -219,7 +220,11 @@ fn focused_pass(client: &Client, config: &Config) -> Result<()> {
         .filter(|candidate| candidate.workspace_id == tab.workspace_id)
         .position(|candidate| candidate.tab_id == tab.tab_id)
         .map_or(0, |position| position + 1);
-    let want = labels::format(position, &program, None, &icons, config);
+    let title = titles::format(
+        snapshot.foreground_title(pane_id, &program),
+        config.session_title_max_width,
+    );
+    let want = labels::format(position, &program, Some(&title), &icons, config);
     if want != label
         && client
             .call("tab.rename", json!({ "tab_id": tab.tab_id, "label": want }))
