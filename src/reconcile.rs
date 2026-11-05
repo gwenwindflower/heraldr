@@ -100,7 +100,13 @@ impl Pass<'_> {
                 let stripped = naming::strip_prefix(label).to_string();
                 let mut base = stripped.clone();
                 let mut named = false;
-                if !self.clear {
+                let mut unnumbered = None;
+                if self.clear {
+                    if let Some(value) = self.state.unnumbered(&tab.tab_id, &stripped) {
+                        base = value.to_string();
+                        unnumbered = Some(base.clone());
+                    }
+                } else {
                     let forced = self.force_tab == Some(tab.tab_id.as_str());
                     if forced || self.state.eligible(&tab.tab_id, &stripped) {
                         let Some(pane) = snapshot.active_pane(tab) else {
@@ -123,6 +129,13 @@ impl Pass<'_> {
                             self.icons,
                             self.config,
                         );
+                        unnumbered = Some(labels::format(
+                            0,
+                            &program,
+                            Some(&title),
+                            self.icons,
+                            self.config,
+                        ));
                         named = true;
                     }
                 }
@@ -149,8 +162,9 @@ impl Pass<'_> {
                 {
                     continue;
                 }
-                if named {
-                    self.state.record(&tab.tab_id, naming::strip_prefix(&want));
+                if let Some(unnumbered) = unnumbered {
+                    self.state
+                        .record(&tab.tab_id, naming::strip_prefix(&want), &unnumbered);
                 }
             }
         }
