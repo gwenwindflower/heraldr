@@ -25,3 +25,4 @@ Owned tabs follow their foreground program across process transitions. Temporary
 - **nm-R017** — Manual tab names remain unchanged by agent icons and session titles until the user resets or clears the name.
 - **nm-R018** — Missing token values disappear with their separators; an otherwise empty automatic label falls back to the foreground program.
 - **nm-R019** — `$session_title` appears only for the pane's current foreground agent, separated from preceding content by ` ⋅ `, and inherits Herdr's tab text style.
+- **nm-R020** — Clearing an owned tab removes its `$jump` token at any configured position while preserving bracketed text in titles and manually changed labels.
