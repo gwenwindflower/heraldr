@@ -17,6 +17,8 @@
     reason = "RPC calls accept owned JSON request values"
 )]
 
+mod agent_icons;
+mod config;
 mod naming;
 mod reconcile;
 mod rpc;
