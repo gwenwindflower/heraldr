@@ -9,6 +9,8 @@ use std::path::Path;
 use anyhow::Result;
 use serde_json::{Value, json};
 
+use crate::config::Config;
+use crate::labels;
 use crate::naming::{self, Icons};
 use crate::rpc::Client;
 use crate::snapshot::{Snapshot, Workspace, foreground_program};
@@ -23,6 +25,7 @@ const WORKTREE_TOKEN: &str = "worktree";
 pub struct Pass<'a> {
     pub client: &'a Client,
     pub icons: &'a Icons,
+    pub config: &'a Config,
     pub state: &'a mut Store,
     pub clear: bool,
     pub force_tab: Option<&'a str>,
@@ -104,7 +107,8 @@ impl Pass<'_> {
                             .and_then(|p| foreground_program(self.client, &p.pane_id).ok())
                             .flatten();
                         if let Some(program) = program {
-                            base = naming::format(&program, self.icons);
+                            base =
+                                labels::format(position, &program, None, self.icons, self.config);
                             named = true;
                         }
                     }
@@ -119,7 +123,11 @@ impl Pass<'_> {
                 if !self.clear && !named && naming::is_placeholder(&base) {
                     continue;
                 }
-                let want = naming::desired(position, &base, self.clear);
+                let want = if named {
+                    base.clone()
+                } else {
+                    naming::desired(position, &base, self.clear)
+                };
                 if want != label
                     && self
                         .client
@@ -129,7 +137,7 @@ impl Pass<'_> {
                     continue;
                 }
                 if named {
-                    self.state.record(&tab.tab_id, &base);
+                    self.state.record(&tab.tab_id, naming::strip_prefix(&want));
                 }
             }
         }

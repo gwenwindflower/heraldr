@@ -19,6 +19,7 @@
 
 mod agent_icons;
 mod config;
+mod labels;
 mod naming;
 mod reconcile;
 mod rpc;
@@ -32,12 +33,12 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use serde_json::Value;
 
-use crate::naming::Icons;
+use crate::config::Config;
 use crate::reconcile::Pass;
 use crate::rpc::Client;
 use crate::snapshot::Snapshot;
 use crate::state::Store;
-use crate::watch::{PidLock, icon_path};
+use crate::watch::{PidLock, icon_path, load_icons};
 
 #[derive(Parser)]
 #[command(
@@ -102,11 +103,17 @@ fn main() -> Result<()> {
 
 fn one_shot(clear: bool, force_tab: Option<&str>) -> Result<()> {
     let client = Client::from_env();
-    let icons = Icons::load(&icon_path());
+    let icons = load_icons();
+    let config = if clear {
+        Config::default()
+    } else {
+        Config::load()?
+    };
     let mut state = Store::load(&client);
     Pass {
         client: &client,
         icons: &icons,
+        config: &config,
         state: &mut state,
         clear,
         force_tab,
@@ -140,6 +147,11 @@ fn reset_target() -> Result<Option<String>> {
 
 fn status() {
     let client = Client::from_env();
+    println!("config   {}", config::path().display());
+    match Config::load() {
+        Ok(config) => println!("settings {}", serde_json::json!(config)),
+        Err(error) => println!("settings invalid: {error:#}"),
+    }
     println!("socket   {}", client.socket_path().display());
     match client.call("ping", serde_json::json!({})) {
         Ok(pong) => {
@@ -154,7 +166,7 @@ fn status() {
         None => println!("watcher  not running — any herdr event will kick one off"),
     }
     let icon_path = icon_path();
-    let icons = Icons::load(&icon_path);
+    let icons = load_icons();
     if icons.is_built_in() {
         println!(
             "icons    {} built-in rows ({} unavailable or incomplete)",
