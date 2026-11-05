@@ -49,7 +49,7 @@ their live foreground program, and sidebar rows get composable display-only meta
 nested worktree name) on panes for agent rows. Labels stay bare everywhere else (agents panel, \
 navigator), and manual renames always win. A per-session watcher keeps everything current from \
 herdr's event stream plus a focused-pane poll; herdr plugin events only need to run `heraldr \
-kick` to keep the watcher alive. config.json composes '$jump', '$icon', '$program', and \
+kick` to keep the watcher alive. config.toml composes '$jump', '$icon', '$program', and \
 '$session_title' in tab_label; session titles are opt-in. Supported agents use Herdr Agent \
 Icons Max when detected, with agent_icons set to 'font' to force logos or 'none' for Nerd Font \
 icons. Explicit user icons.conf rows win; compiled icons provide the fallback."
@@ -61,6 +61,8 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Create a commented default configuration without replacing user settings
+    InitConfig,
     /// Run the watcher for this session (kick spawns this; rarely run by hand)
     Watch {
         /// Focused-pane poll interval in milliseconds
@@ -81,6 +83,15 @@ enum Command {
 
 fn main() -> Result<()> {
     match Cli::parse().command {
+        Command::InitConfig => {
+            let (path, created) = config::initialize()?;
+            println!(
+                "{} {}",
+                if created { "Created" } else { "Keeping" },
+                path.display()
+            );
+            Ok(())
+        }
         Command::Watch { poll_ms } => watch::watch(Duration::from_millis(poll_ms)),
         Command::Kick => watch::kick(),
         Command::Reconcile => one_shot(false, None),

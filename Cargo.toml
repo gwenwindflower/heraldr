@@ -8,7 +8,7 @@ repository = "https://github.com/gwenwindflower/heraldr"
 license = "GPL-3.0-or-later"
 keywords = ["herdr", "herdr-plugin"]
 categories = ["command-line-utilities"]
-include = ["Cargo.lock", "Cargo.toml", "LICENSE", "README.md", "icons.conf", "src/**", "tests/*.rs"]
+include = ["Cargo.lock", "Cargo.toml", "LICENSE", "README.md", "config.toml", "icons.conf", "src/**", "tests/*.rs"]
 
 [package.metadata.binstall]
 pkg-url = "{ repo }/releases/download/v{ version }/{ name }-{ target }-v{ version }{ archive-suffix }"
@@ -22,6 +22,7 @@ clap = { version = "4", features = ["derive", "wrap_help"] }
 libc = "0.2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+toml = { version = "1", default-features = false, features = ["parse", "serde", "std"] }
 unicode-segmentation = "1"
 unicode-width = { version = "0.2", default-features = false }
 

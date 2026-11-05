@@ -2,13 +2,14 @@
 
 ## Phase 10: Agent icons and session titles
 
-**Requirements**: nm-R010–nm-R020, dev-R029
+**Requirements**: nm-R010–nm-R023, dev-R029
 
 ### Select agent icons
 
 - [x] Detect Herdr Agent Icons Max and map supported agents
 - [x] Load icon and title preferences from plugin configuration
 - [x] Preserve user icon overrides and the robot fallback
+- [x] Install commented default preferences without replacing user files
 
 ### Format agent session titles
 

@@ -39,7 +39,7 @@ You need [Herdr](https://herdr.dev/docs/install/) 0.7.5 or later, Git, and a com
 herdr plugin install gwenwindflower/heraldr
 ```
 
-Herdr previews the plugin commands, then the build hook installs the matching Heraldr release on your `PATH`. It tries Cargo Binstall first when available, then compiles from source with Cargo. Plugin events and actions invoke `heraldr` directly; a workspace, tab, or pane event starts the per-session watcher.
+Herdr previews the plugin commands, then the build hook installs the matching Heraldr release on your `PATH`. It tries Cargo Binstall first when available, then compiles from source with Cargo. Installation creates a commented `config.toml` with every preference set to its default; existing TOML or JSON settings are kept. Plugin events and actions invoke `heraldr` directly; a workspace, tab, or pane event starts the per-session watcher.
 
 Verify the installation:
 
@@ -92,16 +92,14 @@ The watcher retries interrupted event subscriptions while retaining its session 
 
 #### Tab labels
 
-Put optional preferences in `config.json` beside your `icons.conf`. Plugin commands use `HERDR_PLUGIN_CONFIG_DIR`; standalone commands use `$XDG_CONFIG_HOME/herdr/plugins/config/heraldr`, normally `~/.config/herdr/plugins/config/heraldr`.
+Edit the installed `config.toml` beside your `icons.conf`; `herdr plugin config-dir heraldr` prints the directory. Each setting has a comment describing its purpose and accepted values. Plugin commands use `HERDR_PLUGIN_CONFIG_DIR`; standalone commands use `$XDG_CONFIG_HOME/herdr/plugins/config/heraldr`, normally `~/.config/herdr/plugins/config/heraldr`.
+
+Both TOML and JSON settings are accepted; `config.json` takes precedence if both files exist. Installation preserves existing files byte-for-byte. Run `heraldr init-config` to create missing defaults after a direct Cargo install. It uses Herdr's config-directory lookup when available, including Herdr's migration of existing plugin files; it does not need a running server.
 
 To show an agent's session title:
 
-```json
-{
-  "tab_label": ["$jump", "$icon", "$program", "$session_title"],
-  "agent_icons": "auto",
-  "session_title_max_width": 28
-}
+```toml
+tab_label = ["$jump", "$icon", "$program", "$session_title"]
 ```
 
 | Token | Value |
@@ -155,7 +153,7 @@ Put the checkout in front of Herdr:
 mise run dev:reload
 ```
 
-That stops the running watcher, installs the checkout's binary on your `PATH`, and links its manifest. The link points directly at the checkout, so `herdr-plugin.toml` and `icons.conf` stay local. `icons.conf` edits apply live; the binary carries the same map as a fallback when the checkout is unavailable. Rerun `dev:reload` after Rust changes.
+That stops the running watcher, installs the checkout's binary on your `PATH`, initializes missing configuration, and links its manifest. The link points directly at the checkout, so `herdr-plugin.toml` and `icons.conf` stay local. `icons.conf` edits apply live; the binary carries the same map as a fallback when the checkout is unavailable. Rerun `dev:reload` after Rust changes.
 
 `mise run dev` runs local checks and tests, then installs a fresh build from this checkout with `cargo install --path .` and links it into Herdr. Local linking does not run the manifest's release installer or Cargo Binstall.
 

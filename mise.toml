@@ -22,8 +22,8 @@ run = "cargo pretty build --locked"
 raw = true
 
 [tasks.install]
-description = "Install the checkout's binary on your PATH"
-run = "cargo install --path . --locked --force"
+description = "Install the checkout's binary and initialize missing configuration"
+run = ["cargo install --path . --locked --force", "heraldr init-config"]
 
 [tasks.fmt]
 description = "Rewrite every file to the rustfmt style"
