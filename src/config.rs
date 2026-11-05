@@ -1,7 +1,10 @@
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, ensure};
 use serde::{Deserialize, Serialize};
+
+const DEFAULT_CONFIG: &str = include_str!("../config.toml");
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -57,8 +60,16 @@ impl Config {
                 return Err(error).with_context(|| format!("reading {}", path.display()));
             }
         };
-        let config: Self = serde_json::from_str(&text)
-            .with_context(|| format!("invalid JSON settings in {}", path.display()))?;
+        let config: Self = if path
+            .extension()
+            .is_some_and(|extension| extension == "toml")
+        {
+            toml::from_str(&text)
+                .with_context(|| format!("invalid TOML settings in {}", path.display()))?
+        } else {
+            serde_json::from_str(&text)
+                .with_context(|| format!("invalid JSON settings in {}", path.display()))?
+        };
         ensure!(
             (1..=256).contains(&config.session_title_max_width),
             "{}: session_title_max_width must be between 1 and 256",
@@ -83,7 +94,67 @@ impl Config {
 }
 
 pub fn path() -> PathBuf {
-    directory().join("config.json")
+    path_in(&directory())
+}
+
+fn path_in(directory: &Path) -> PathBuf {
+    let json = directory.join("config.json");
+    if json.symlink_metadata().is_ok() {
+        json
+    } else {
+        directory.join("config.toml")
+    }
+}
+
+pub fn initialize() -> Result<(PathBuf, bool)> {
+    let directory = installation_directory()?;
+    let selected = path_in(&directory);
+    if selected.symlink_metadata().is_ok() {
+        return Ok((selected, false));
+    }
+    std::fs::create_dir_all(&directory)
+        .with_context(|| format!("creating {}", directory.display()))?;
+    let path = directory.join("config.toml");
+    let mut file = match std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&path)
+    {
+        Ok(file) => file,
+        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+            return Ok((path, false));
+        }
+        Err(error) => return Err(error).with_context(|| format!("creating {}", path.display())),
+    };
+    file.write_all(DEFAULT_CONFIG.as_bytes())
+        .with_context(|| format!("writing {}", path.display()))?;
+    Ok((path, true))
+}
+
+fn installation_directory() -> Result<PathBuf> {
+    if std::env::var_os("HERDR_PLUGIN_CONFIG_DIR").is_some_and(|value| !value.is_empty()) {
+        return Ok(directory());
+    }
+    let output = match std::process::Command::new("herdr")
+        .args(["plugin", "config-dir", "heraldr"])
+        .output()
+    {
+        Ok(output) => output,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(directory()),
+        Err(error) => return Err(error).context("locating Heraldr configuration with Herdr"),
+    };
+    ensure!(
+        output.status.success(),
+        "herdr plugin config-dir heraldr failed: {}",
+        String::from_utf8_lossy(&output.stderr).trim()
+    );
+    let path =
+        String::from_utf8(output.stdout).context("reading Herdr's plugin config directory")?;
+    ensure!(
+        !path.trim().is_empty(),
+        "Herdr returned an empty plugin config directory"
+    );
+    Ok(PathBuf::from(path.trim()))
 }
 
 pub fn directory() -> PathBuf {
@@ -134,6 +205,30 @@ mod tests {
     }
 
     #[test]
+    fn installed_template_explicitly_sets_every_runtime_default() {
+        let installed: serde_json::Value = toml::from_str(DEFAULT_CONFIG).unwrap();
+        assert_eq!(installed, serde_json::to_value(Config::default()).unwrap());
+    }
+
+    #[test]
+    fn existing_json_preferences_take_precedence_over_toml() {
+        let root = file("");
+        std::fs::remove_file(&root).unwrap();
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("config.toml"), "agent_icons = \"none\"\n").unwrap();
+        assert_eq!(
+            Config::load_from(&path_in(&root)).unwrap().agent_icons,
+            AgentIcons::None
+        );
+        std::fs::write(root.join("config.json"), r#"{"agent_icons":"font"}"#).unwrap();
+        assert_eq!(
+            Config::load_from(&path_in(&root)).unwrap().agent_icons,
+            AgentIcons::Font
+        );
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn reads_agent_display_preferences() {
         let path = file(
             r#"{"agent_icons":"font","tab_label":["$jump","$icon","$program","$session_title"],"session_title_max_width":40}"#,
@@ -150,6 +245,23 @@ mod tests {
             ]
         );
         assert_eq!(config.session_title_max_width, 40);
+        std::fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn commented_toml_accepts_the_same_label_preferences() {
+        let original = file(
+            "# Compose the tab\ntab_label = [\"$jump\", \"$session_title\"]\nagent_icons = \"none\"\n",
+        );
+        let path = original.with_extension("toml");
+        std::fs::rename(original, &path).unwrap();
+        let config = Config::load_from(&path).unwrap();
+        assert_eq!(
+            config.tab_label,
+            vec![TabToken::Jump, TabToken::SessionTitle]
+        );
+        assert_eq!(config.agent_icons, AgentIcons::None);
+        assert_eq!(config.session_title_max_width, 28);
         std::fs::remove_file(path).unwrap();
     }
 

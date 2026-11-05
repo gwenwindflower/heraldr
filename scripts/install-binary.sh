@@ -25,6 +25,7 @@ is_current() {
 
 if path_binary=$(command -v heraldr 2>/dev/null) && is_current "$path_binary"; then
 	printf 'Heraldr %s is already installed at %s.\n' "$version" "$path_binary"
+	"$path_binary" init-config
 	exit 0
 fi
 
@@ -38,6 +39,7 @@ if command -v cargo-binstall >/dev/null 2>&1; then
 		--no-confirm &&
 		path_binary=$(command -v heraldr 2>/dev/null) &&
 		is_current "$path_binary"; then
+		"$path_binary" init-config
 		exit 0
 	fi
 	printf 'No compatible release artifact found; installing Heraldr from source.\n' >&2
@@ -54,3 +56,5 @@ if ! is_current "$path_binary"; then
 	printf 'Heraldr on PATH reported an unexpected version; expected %s; actual %s.\n' "$expected_version" "${installed_version:-unavailable}" >&2
 	exit 1
 fi
+
+"$path_binary" init-config
