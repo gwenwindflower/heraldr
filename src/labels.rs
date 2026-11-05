@@ -18,11 +18,11 @@ pub fn format(
         agent_icons::glyph(resolved, config.agent_icons)
     };
     let icon = logo.unwrap_or_else(|| {
-        icons.get(if agent.is_some() && !icons.has_explicit(resolved) {
-            "claude"
+        if agent.is_some() && !icons.has_explicit(resolved) {
+            naming::robot_icon()
         } else {
-            resolved
-        })
+            icons.get(resolved)
+        }
     });
     let jump = (1..=9).contains(&position).then(|| format!("[{position}]"));
     let mut label = String::new();
@@ -94,7 +94,10 @@ mod tests {
             agent_icons: AgentIcons::None,
             ..Config::default()
         };
-        assert_eq!(format(1, "grok", None, &icons(), &config), "[1] R grok");
+        assert_eq!(
+            format(1, "grok", None, &icons(), &config),
+            "[1] \u{f171a} grok"
+        );
     }
 
     #[test]

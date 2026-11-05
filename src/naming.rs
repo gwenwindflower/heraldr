@@ -11,8 +11,14 @@
 //! Test pins below spell glyphs as `\u{...}` escapes for the same reason.
 
 use std::path::Path;
+use std::sync::OnceLock;
 
 const BUILT_IN_MANIFEST: &str = include_str!("../icons.conf");
+
+pub fn robot_icon() -> &'static str {
+    static ICONS: OnceLock<Icons> = OnceLock::new();
+    ICONS.get_or_init(Icons::built_in).get("claude")
+}
 
 /// Label shown at a bare prompt, and for any program that resolves away.
 pub const SHELL: &str = "fish";
