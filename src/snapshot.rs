@@ -148,6 +148,23 @@ impl Agent {
 }
 
 impl Snapshot {
+    pub fn foreground_title(&self, pane_id: &str, program: &str) -> Option<&str> {
+        let agent = self
+            .agents
+            .iter()
+            .find(|agent| agent.pane_id.as_deref() == Some(pane_id))?;
+        let detected = agent.detected();
+        let foreground = crate::agent_icons::canonical_agent(program).unwrap_or(program);
+        let detected = crate::agent_icons::canonical_agent(detected).unwrap_or(detected);
+        if detected.is_empty() || foreground != detected {
+            return None;
+        }
+        self.panes
+            .iter()
+            .find(|pane| pane.pane_id == pane_id)?
+            .session_title()
+    }
+
     pub fn fetch(client: &Client) -> Result<Self> {
         let result = client.call("session.snapshot", json!({}))?;
         let snapshot = result
@@ -217,6 +234,52 @@ pub fn foreground_program(client: &Client, pane_id: &str) -> Result<Option<Strin
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn titled_snapshot(agent: &str) -> Snapshot {
+        serde_json::from_value(json!({
+            "panes": [
+                {"pane_id":"w1:p1", "terminal_title_stripped":"Repair login"},
+                {"pane_id":"w1:p2", "terminal_title_stripped":"Review schema"}
+            ],
+            "agents": [{"pane_id":"w1:p1", "agent":agent}]
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn only_the_foreground_agents_pane_supplies_a_title() {
+        let snapshot = titled_snapshot("claude");
+        assert_eq!(
+            snapshot.foreground_title("w1:p1", "claude"),
+            Some("Repair login")
+        );
+        assert_eq!(snapshot.foreground_title("w1:p1", "fish"), None);
+        assert_eq!(snapshot.foreground_title("w1:p1", "codex"), None);
+        assert_eq!(snapshot.foreground_title("w1:p2", "claude"), None);
+    }
+
+    #[test]
+    fn agent_aliases_match_their_canonical_foreground_program() {
+        assert_eq!(
+            titled_snapshot("claude").foreground_title("w1:p1", "claude-code"),
+            Some("Repair login")
+        );
+        assert_eq!(
+            titled_snapshot("cursor-agent").foreground_title("w1:p1", "cursor"),
+            Some("Repair login")
+        );
+    }
+
+    #[test]
+    fn custom_detected_agents_require_an_exact_foreground_match() {
+        let snapshot = titled_snapshot("custom-agent");
+        assert_eq!(
+            snapshot.foreground_title("w1:p1", "custom-agent"),
+            Some("Repair login")
+        );
+        assert_eq!(snapshot.foreground_title("w1:p1", "custom"), None);
+        assert_eq!(snapshot.foreground_title("w1:p1", "fish"), None);
+    }
 
     #[test]
     fn pane_title_prefers_the_spinner_free_snapshot_value() {

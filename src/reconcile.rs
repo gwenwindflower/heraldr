@@ -15,6 +15,7 @@ use crate::naming::{self, Icons};
 use crate::rpc::Client;
 use crate::snapshot::{Snapshot, Workspace, foreground_program};
 use crate::state::Store;
+use crate::titles;
 
 const METADATA_SOURCE: &str = "heraldr";
 const JUMP_TOKEN: &str = "jump";
@@ -102,15 +103,27 @@ impl Pass<'_> {
                 if !self.clear {
                     let forced = self.force_tab == Some(tab.tab_id.as_str());
                     if forced || self.state.eligible(&tab.tab_id, &stripped) {
-                        let program = snapshot
-                            .active_pane(tab)
-                            .and_then(|p| foreground_program(self.client, &p.pane_id).ok())
-                            .flatten();
-                        if let Some(program) = program {
-                            base =
-                                labels::format(position, &program, None, self.icons, self.config);
-                            named = true;
-                        }
+                        let Some(pane) = snapshot.active_pane(tab) else {
+                            continue;
+                        };
+                        let Some(program) = foreground_program(self.client, &pane.pane_id)
+                            .ok()
+                            .flatten()
+                        else {
+                            continue;
+                        };
+                        let title = titles::format(
+                            snapshot.foreground_title(&pane.pane_id, &program),
+                            self.config.session_title_max_width,
+                        );
+                        base = labels::format(
+                            position,
+                            &program,
+                            Some(&title),
+                            self.icons,
+                            self.config,
+                        );
+                        named = true;
                     }
                 }
                 // No sensible "[N] " exists for an empty base, and an
