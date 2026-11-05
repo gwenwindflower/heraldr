@@ -9,7 +9,7 @@ Heraldr gives [Herdr](https://herdr.dev) tabs and sidebar rows compact, live con
 - Agent rows expose the repository and linked worktree through `$space` and `$worktree`.
 - Manual tab names always win.
 
-Heraldr supports Linux and macOS. Its icons require a terminal font with Nerd Font glyphs.
+Heraldr supports Linux and macOS. Its program icons require Nerd Font glyphs; supported agents can use the optional Herdr Agent Icons Max font.
 
 <!-- toc -->
 
@@ -17,6 +17,8 @@ Heraldr supports Linux and macOS. Its icons require a terminal font with Nerd Fo
   - [Update](#update)
 - [Actions](#actions)
   - [Configuration and state](#configuration-and-state)
+    - [Tab labels](#tab-labels)
+    - [Agent font](#agent-font)
 - [Local development](#local-development)
   - [Switch between local and released Heraldr](#switch-between-local-and-released-heraldr)
   - [Checks](#checks)
@@ -87,6 +89,49 @@ Copy `icons.conf` into Herdr's plugin config directory to customize icons; `herd
 Plugin invocations keep ownership records and watcher locks in `HERDR_PLUGIN_STATE_DIR`. Standalone commands use `$XDG_STATE_HOME/herdr-heraldr` (normally `~/.local/state/herdr-heraldr`); `HERALDR_STATE_DIR` explicitly overrides either location. On first use, the plugin state directory inherits existing standalone ownership records without modifying them. Stop the running watcher before switching binaries or removing state. Uninstalling leaves user configuration in place; remove configuration or ownership files only when you want to discard those settings.
 
 The watcher retries interrupted event subscriptions while retaining its session lock. It exits if the session remains unavailable; a later plugin event starts it again.
+
+#### Tab labels
+
+Put optional preferences in `config.json` beside your `icons.conf`. Plugin commands use `HERDR_PLUGIN_CONFIG_DIR`; standalone commands use `$XDG_CONFIG_HOME/herdr/plugins/config/heraldr`, normally `~/.config/herdr/plugins/config/heraldr`.
+
+To show an agent's session title:
+
+```json
+{
+  "tab_label": ["$jump", "$icon", "$program", "$session_title"],
+  "agent_icons": "auto",
+  "session_title_max_width": 28
+}
+```
+
+| Token | Value |
+| --- | --- |
+| `$jump` | `[1]` through `[9]` for the tab's current jump position; empty beyond nine |
+| `$icon` | The foreground program's icon, or its agent logo when available |
+| `$program` | The foreground program's display name, such as `fish`, `nvim`, or `claude` |
+| `$session_title` | Herdr's terminal title for the current foreground agent, without a leading activity indicator |
+
+Tokens render in the listed order. Missing values disappear with their separators. A session title follows preceding content with ` ⋅ `; other components use spaces. If every selected value is empty, the foreground program supplies the label. The default is `["$jump", "$icon", "$program"]`; adding `$session_title` opts into titles, and removing it hides them. Token names must be known, unique, and the list must not be empty.
+
+Titles fit `session_title_max_width` terminal columns, including an ellipsis when shortened; the setting accepts 1–256 and defaults to 28. Heraldr removes terminal controls, collapses whitespace, and preserves Unicode graphemes. Herdr styles tab labels as plain text, so every component uses the tab's text color. Manual names keep their existing behavior and are not composed from these tokens.
+
+Settings reload while the watcher runs. Invalid settings leave its last usable preferences in effect; `heraldr reconcile` and `heraldr status` identify invalid configuration by path.
+
+#### Agent font
+
+Heraldr detects the **Herdr Agent Icons Max** font used by [herdr-bar](https://github.com/jeffarese/herdr-bar) and [herdr-radar](https://github.com/hhdebb/herdr-radar). It never installs fonts or changes terminal settings. Follow [herdr-bar's font setup](https://github.com/jeffarese/herdr-bar#agent-icons-at-a-glance), including your terminal's codepoint mapping. For Kitty:
+
+```text
+symbol_map U+E1A0-U+E1B7 Herdr Agent Icons Max
+```
+
+| `agent_icons` | Behavior |
+| --- | --- |
+| `auto` | Use agent logos when the font is found locally; this is the default |
+| `font` | Force logos, useful when the font is in a local terminal attached to a remote Herdr |
+| `none` | Use configured program icons, including the robot for agents |
+
+Local detection cannot verify the terminal's font mapping. Font logos use an extra following space because the font draws into the next cell. An explicit matching row in your `icons.conf` wins over an agent logo; agents without a logo retain the robot fallback.
 
 ## Local development
 
