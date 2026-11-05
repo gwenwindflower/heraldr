@@ -130,9 +130,6 @@ pub fn watch(poll: Duration) -> Result<()> {
                     return Ok(());
                 }
                 last_full = Instant::now();
-                // Drop the echoes of our own renames; a real event racing
-                // this window is caught by the safety net.
-                while let Ok(Signal::Changed) = rx.try_recv() {}
             }
             Err(mpsc::RecvTimeoutError::Timeout) => {
                 settings.reload();
@@ -232,7 +229,8 @@ fn focused_pass(client: &Client, config: &Config) -> Result<()> {
     {
         return Ok(());
     }
-    state.record(&tab.tab_id, naming::strip_prefix(&want));
+    let unnumbered = labels::format(0, &program, Some(&title), &icons, config);
+    state.record(&tab.tab_id, naming::strip_prefix(&want), &unnumbered);
     state.save()
 }
 
