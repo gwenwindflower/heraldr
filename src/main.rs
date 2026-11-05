@@ -25,6 +25,7 @@ mod reconcile;
 mod rpc;
 mod snapshot;
 mod state;
+mod titles;
 mod watch;
 
 use std::time::Duration;
