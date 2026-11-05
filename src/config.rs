@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, ensure};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum AgentIcons {
     #[default]
@@ -12,7 +12,7 @@ pub enum AgentIcons {
     None,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub enum TabToken {
     #[serde(rename = "$jump")]
     Jump,
@@ -24,7 +24,7 @@ pub enum TabToken {
     SessionTitle,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(default, deny_unknown_fields)]
 pub struct Config {
     pub agent_icons: AgentIcons,
@@ -97,14 +97,11 @@ pub fn directory() -> PathBuf {
 fn config_directory(plugin: Option<PathBuf>, xdg: Option<PathBuf>, home: Option<&Path>) -> PathBuf {
     plugin
         .filter(|dir| !dir.as_os_str().is_empty())
-        .map_or_else(
-            || {
-                xdg.filter(|dir| !dir.as_os_str().is_empty())
-                    .unwrap_or_else(|| home.unwrap_or_else(|| Path::new(".")).join(".config"))
-                    .join("herdr/plugins/config/heraldr")
-            },
-            |dir| dir,
-        )
+        .unwrap_or_else(|| {
+            xdg.filter(|dir| !dir.as_os_str().is_empty())
+                .unwrap_or_else(|| home.unwrap_or_else(|| Path::new(".")).join(".config"))
+                .join("herdr/plugins/config/heraldr")
+        })
 }
 
 #[cfg(test)]
