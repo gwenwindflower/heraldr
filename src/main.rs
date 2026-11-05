@@ -1,12 +1,9 @@
 //! Heraldr — Herdr tab, workspace, and agent chrome.
 //!
-//! Tabs auto-name as "[N] <icon> <program>" after their foreground program
-//! (the shell at a bare prompt), workspaces and agents get the "[N] " prefix
-//! of their 1-9 jump keybind, and manual renames always win. A per-session
-//! watcher daemon drives everything over herdr's socket: pushed events for
-//! structural changes, a focused-pane poll for foreground changes no event
-//! covers. Ported from the pure-fish engine, itself a rework of
-//! qu8n/herdr-automatic-rename.
+//! Tabs compose jump numbers, program icons, names, and optional agent titles.
+//! Sidebar metadata exposes workspace jump numbers and repository context.
+//! A per-session watcher follows events and foreground process transitions;
+//! manual tab names remain under the user's control.
 
 #![allow(
     clippy::struct_field_names,
@@ -52,8 +49,10 @@ their live foreground program, and sidebar rows get composable display-only meta
 nested worktree name) on panes for agent rows. Labels stay bare everywhere else (agents panel, \
 navigator), and manual renames always win. A per-session watcher keeps everything current from \
 herdr's event stream plus a focused-pane poll; herdr plugin events only need to run `heraldr \
-kick` to keep the watcher alive. Icons reload from the hand-edited icons.conf manifest when \
-available and otherwise use the copy compiled into the binary."
+kick` to keep the watcher alive. config.json composes '$jump', '$icon', '$program', and \
+'$session_title' in tab_label; session titles are opt-in. Supported agents use Herdr Agent \
+Icons Max when detected, with agent_icons set to 'font' to force logos or 'none' for Nerd Font \
+icons. Explicit user icons.conf rows win; compiled icons provide the fallback."
 )]
 struct Cli {
     #[command(subcommand)]
@@ -74,7 +73,7 @@ enum Command {
     Reconcile,
     /// Re-adopt the current tab into automatic naming after a manual rename
     Reset,
-    /// Strip all Heraldr chrome and stop the watcher (run before uninstalling)
+    /// Remove jump numbers and sidebar tokens and stop the watcher
     Clear,
     /// Show watcher, socket, and state health
     Status,
