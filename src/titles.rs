@@ -15,7 +15,7 @@ pub fn strip_activity(title: &str) -> &str {
     }
 }
 
-pub fn format_suffix(title: Option<&str>, max_width: usize) -> String {
+pub fn format(title: Option<&str>, max_width: usize) -> String {
     let Some(title) = title.filter(|_| max_width > 0) else {
         return String::new();
     };
@@ -25,7 +25,7 @@ pub fn format_suffix(title: Option<&str>, max_width: usize) -> String {
         return String::new();
     }
     if title.width() <= max_width {
-        return format!(" ⋅ {title}");
+        return title;
     }
     let mut end = 0;
     let mut width = 0;
@@ -36,7 +36,7 @@ pub fn format_suffix(title: Option<&str>, max_width: usize) -> String {
         }
         end = start + grapheme.len();
     }
-    format!(" ⋅ {}…", &title[..end])
+    format!("{}…", &title[..end])
 }
 
 #[derive(Clone, Copy)]
@@ -84,24 +84,24 @@ mod tests {
     use super::*;
 
     #[test]
-    fn missing_and_blank_titles_have_no_separator() {
+    fn missing_and_blank_titles_produce_empty_text() {
         for title in [None, Some(""), Some(" \n\t ")] {
-            assert_eq!(format_suffix(title, 28), "");
+            assert_eq!(format(title, 28), "");
         }
     }
 
     #[test]
     fn title_whitespace_collapses_to_one_line() {
         assert_eq!(
-            format_suffix(Some("  Repair\n login\t flow  "), 28),
-            " ⋅ Repair login flow"
+            format(Some("  Repair\n login\t flow  "), 28),
+            "Repair login flow"
         );
     }
 
     #[test]
     fn escape_sequences_and_control_bytes_do_not_enter_the_label() {
         let title = "\u{1b}[31mRepair\u{1b}[0m \u{1b}]8;;https://example.com\u{1b}\\login\u{1b}]8;;\u{7} flow\u{0}\u{8}";
-        assert_eq!(format_suffix(Some(title), 28), " ⋅ Repair login flow");
+        assert_eq!(format(Some(title), 28), "Repair login flow");
     }
 
     #[test]
@@ -111,23 +111,23 @@ mod tests {
             "Repair\u{1b}[31",
             "Repair\u{1b}Ppayload",
         ] {
-            assert_eq!(format_suffix(Some(title), 28), " ⋅ Repair");
+            assert_eq!(format(Some(title), 28), "Repair");
         }
     }
 
     #[test]
     fn truncation_budget_includes_the_ellipsis() {
-        assert_eq!(format_suffix(Some("Fix login"), 9), " ⋅ Fix login");
-        assert_eq!(format_suffix(Some("Fix login"), 8), " ⋅ Fix log…");
-        assert_eq!(format_suffix(Some("Fix login"), 1), " ⋅ …");
-        assert_eq!(format_suffix(Some("Fix login"), 0), "");
+        assert_eq!(format(Some("Fix login"), 9), "Fix login");
+        assert_eq!(format(Some("Fix login"), 8), "Fix log…");
+        assert_eq!(format(Some("Fix login"), 1), "…");
+        assert_eq!(format(Some("Fix login"), 0), "");
     }
 
     #[test]
     fn truncation_counts_terminal_columns_and_keeps_graphemes() {
-        assert_eq!(format_suffix(Some("修復登入流程"), 7), " ⋅ 修復登…");
-        assert_eq!(format_suffix(Some("e\u{301}clair"), 4), " ⋅ e\u{301}cl…");
-        assert_eq!(format_suffix(Some("👩‍💻 login"), 4), " ⋅ 👩‍💻 …");
+        assert_eq!(format(Some("修復登入流程"), 7), "修復登…");
+        assert_eq!(format(Some("e\u{301}clair"), 4), "e\u{301}cl…");
+        assert_eq!(format(Some("👩‍💻 login"), 4), "👩‍💻 …");
     }
 
     #[test]
