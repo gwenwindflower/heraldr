@@ -67,6 +67,10 @@ pub struct Pane {
     pub workspace_id: Option<String>,
     #[serde(default)]
     pub focused: bool,
+    #[serde(default)]
+    pub terminal_title: Option<String>,
+    #[serde(default)]
+    pub terminal_title_stripped: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -109,6 +113,16 @@ impl Workspace {
 impl Tab {
     pub fn label(&self) -> &str {
         self.label.as_deref().unwrap_or("")
+    }
+}
+
+impl Pane {
+    pub fn session_title(&self) -> Option<&str> {
+        self.terminal_title_stripped.as_deref().or_else(|| {
+            self.terminal_title
+                .as_deref()
+                .map(crate::titles::strip_activity)
+        })
     }
 }
 
@@ -198,4 +212,38 @@ pub fn foreground_program(client: &Client, pane_id: &str) -> Result<Option<Strin
         let base = base.rsplit('/').next().unwrap_or("");
         (!base.is_empty()).then(|| base.to_string())
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pane_title_prefers_the_spinner_free_snapshot_value() {
+        let pane: Pane = serde_json::from_value(json!({
+            "pane_id": "w1:p1",
+            "terminal_title": "✳ Repair login",
+            "terminal_title_stripped": "Repair login"
+        }))
+        .unwrap();
+        assert_eq!(pane.session_title(), Some("Repair login"));
+    }
+
+    #[test]
+    fn pane_title_falls_back_when_the_stripped_field_is_missing() {
+        let pane: Pane = serde_json::from_value(json!({
+            "pane_id": "w1:p1", "terminal_title": "Repair login"
+        }))
+        .unwrap();
+        assert_eq!(pane.session_title(), Some("Repair login"));
+    }
+
+    #[test]
+    fn an_empty_stripped_title_does_not_restore_a_spinner_only_title() {
+        let pane: Pane = serde_json::from_value(json!({
+            "pane_id": "w1:p1", "terminal_title": "✳", "terminal_title_stripped": ""
+        }))
+        .unwrap();
+        assert_eq!(pane.session_title(), Some(""));
+    }
 }
