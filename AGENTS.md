@@ -10,8 +10,6 @@ Task scripts live in `mise-tasks/`, grouped into directories that become the `ve
 
 `depends` runs in parallel, so order-sensitive steps belong in a sequential `run` array. `deny_net` and `deny_write` are honored only on TOML tasks.
 
-Herdr commands (`herdr:*`, `dev:*`) need the Herdr socket, which sandboxed agents cannot reach; ask the user to run them.
-
 ## Releases are human-gated
 
 Never run `release`, `release:push`, or `release:create`. They push commits and create public GitHub releases behind mise `confirm` gates that default to no. `release:rehearse` is the dry run: it exercises every read-only step and prints the notes that would ship. Run it when the project looks ready, report what it says, and stop.
