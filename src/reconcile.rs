@@ -9,10 +9,13 @@ use std::path::Path;
 use anyhow::Result;
 use serde_json::{Value, json};
 
+use crate::config::Config;
+use crate::labels;
 use crate::naming::{self, Icons};
 use crate::rpc::Client;
 use crate::snapshot::{Snapshot, Workspace, foreground_program};
 use crate::state::Store;
+use crate::titles;
 
 const METADATA_SOURCE: &str = "heraldr";
 const JUMP_TOKEN: &str = "jump";
@@ -23,6 +26,7 @@ const WORKTREE_TOKEN: &str = "worktree";
 pub struct Pass<'a> {
     pub client: &'a Client,
     pub icons: &'a Icons,
+    pub config: &'a Config,
     pub state: &'a mut Store,
     pub clear: bool,
     pub force_tab: Option<&'a str>,
@@ -96,17 +100,43 @@ impl Pass<'_> {
                 let stripped = naming::strip_prefix(label).to_string();
                 let mut base = stripped.clone();
                 let mut named = false;
-                if !self.clear {
+                let mut unnumbered = None;
+                if self.clear {
+                    if let Some(value) = self.state.unnumbered(&tab.tab_id, &stripped) {
+                        base = value.to_string();
+                        unnumbered = Some(base.clone());
+                    }
+                } else {
                     let forced = self.force_tab == Some(tab.tab_id.as_str());
                     if forced || self.state.eligible(&tab.tab_id, &stripped) {
-                        let program = snapshot
-                            .active_pane(tab)
-                            .and_then(|p| foreground_program(self.client, &p.pane_id).ok())
-                            .flatten();
-                        if let Some(program) = program {
-                            base = naming::format(&program, self.icons);
-                            named = true;
-                        }
+                        let Some(pane) = snapshot.active_pane(tab) else {
+                            continue;
+                        };
+                        let Some(program) = foreground_program(self.client, &pane.pane_id)
+                            .ok()
+                            .flatten()
+                        else {
+                            continue;
+                        };
+                        let title = titles::format(
+                            snapshot.foreground_title(&pane.pane_id, &program),
+                            self.config.session_title_max_width,
+                        );
+                        base = labels::format(
+                            position,
+                            &program,
+                            Some(&title),
+                            self.icons,
+                            self.config,
+                        );
+                        unnumbered = Some(labels::format(
+                            0,
+                            &program,
+                            Some(&title),
+                            self.icons,
+                            self.config,
+                        ));
+                        named = true;
                     }
                 }
                 // No sensible "[N] " exists for an empty base, and an
@@ -119,7 +149,11 @@ impl Pass<'_> {
                 if !self.clear && !named && naming::is_placeholder(&base) {
                     continue;
                 }
-                let want = naming::desired(position, &base, self.clear);
+                let want = if named {
+                    base.clone()
+                } else {
+                    naming::desired(position, &base, self.clear)
+                };
                 if want != label
                     && self
                         .client
@@ -128,8 +162,9 @@ impl Pass<'_> {
                 {
                     continue;
                 }
-                if named {
-                    self.state.record(&tab.tab_id, &base);
+                if let Some(unnumbered) = unnumbered {
+                    self.state
+                        .record(&tab.tab_id, naming::strip_prefix(&want), &unnumbered);
                 }
             }
         }

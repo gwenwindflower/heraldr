@@ -10,8 +10,6 @@ Task scripts live in `mise-tasks/`, grouped into directories that become the `ve
 
 `depends` runs in parallel, so order-sensitive steps belong in a sequential `run` array. `deny_net` and `deny_write` are honored only on TOML tasks.
 
-Herdr commands (`herdr:*`, `dev:*`) need the Herdr socket, which sandboxed agents cannot reach; ask the user to run them.
-
 ## Releases are human-gated
 
 Never run `release`, `release:push`, or `release:create`. They push commits and create public GitHub releases behind mise `confirm` gates that default to no. `release:rehearse` is the dry run: it exercises every read-only step and prints the notes that would ship. Run it when the project looks ready, report what it says, and stop.
@@ -28,7 +26,7 @@ prek runs file hygiene on every commit (staged files only) and rejects commit su
 
 Interactive Cargo tasks live under `dev:`; `test:*` is safe for unattended gates and CI. Installer tests use fake Cargo/Binstall in temporary directories. Local reloads use `cargo install --path .` and `herdr plugin link`, which does not execute manifest build hooks.
 
-Shell tasks and tests use Bash and standard Unix utilities; use `grep -F` for literals and `grep -E` for regular expressions. Developer search preferences do not make tools such as ripgrep runtime prerequisites. Declare nonstandard task dependencies in mise.
+Shell tasks and tests use Bash and standard Unix utilities; use `grep -F` for literals and `grep -E` for regular expressions. Developer search preferences do not make tools such as ripgrep runtime prerequisites. Keep development tools commented in committed `mise.toml`; active declarations are for build or run dependencies. CI selects `mise.ci.toml` with `MISE_ENV=ci`; keep its development tools and versions aligned.
 
 ## Workflow changes
 

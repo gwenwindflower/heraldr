@@ -18,6 +18,12 @@ struct Session {
     tab_id: String,
     label: String,
     program: String,
+    agent: Option<String>,
+    title: Option<String>,
+    raw_title: Option<String>,
+    background: bool,
+    leading_tab: bool,
+    notify: bool,
     inspection_fails: bool,
     leader_missing: bool,
     rename_fails: bool,
@@ -52,14 +58,39 @@ fn answer(
     let method = request["method"].as_str().unwrap();
     let mut session = session.lock().unwrap();
     let result = match method {
-        "session.snapshot" => json!({ "snapshot": {
-            "focused_tab_id": session.tab_id, "focused_pane_id": "w1:p1",
-            "workspaces": [{ "workspace_id": "w1", "label": "project" }],
-            "tabs": [{ "workspace_id": "w1", "tab_id": session.tab_id,
-                "label": session.label, "pane_count": 1, "focused": true }],
-            "panes": [{ "workspace_id": "w1", "tab_id": session.tab_id,
-                "pane_id": "w1:p1", "focused": true }]
-        }}),
+        "session.snapshot" => {
+            let focused_tab = if session.background {
+                "w1:t2"
+            } else {
+                &session.tab_id
+            };
+            let focused_pane = if session.background { "w1:p2" } else { "w1:p1" };
+            let mut tabs = vec![json!({ "workspace_id": "w1", "tab_id": session.tab_id,
+                "label": session.label, "pane_count": 1, "focused": !session.background })];
+            if session.leading_tab {
+                tabs.insert(
+                    0,
+                    json!({"workspace_id":"w1", "tab_id":"w1:t0", "label":"Notes"}),
+                );
+            }
+            if session.background {
+                tabs.push(json!({"workspace_id":"w1", "tab_id":"w1:t2", "label":"Notes", "pane_count":1, "focused":true}));
+            }
+            let mut panes = vec![json!({ "workspace_id": "w1", "tab_id": session.tab_id,
+                "pane_id": "w1:p1", "focused": !session.background,
+                "terminal_title_stripped": session.title, "terminal_title": session.raw_title })];
+            if session.background {
+                panes.push(json!({"workspace_id":"w1", "tab_id":"w1:t2", "pane_id":"w1:p2", "focused":true}));
+            }
+            json!({ "snapshot": {
+                "focused_tab_id": focused_tab, "focused_pane_id": focused_pane,
+                "workspaces": [{ "workspace_id": "w1", "label": "project" }],
+                "tabs": tabs, "panes": panes,
+                "agents": session.agent.as_ref().map(|agent| vec![json!({
+                    "pane_id": "w1:p1", "agent": agent
+                })]).unwrap_or_default()
+            }})
+        }
         "pane.process_info" => {
             session.inspections += 1;
             let processes = if session.leader_missing {
@@ -74,7 +105,7 @@ fn answer(
         }
         "tab.rename" => {
             session.renames += 1;
-            if !session.rename_fails {
+            if !session.rename_fails && request["params"]["tab_id"] == session.tab_id {
                 session.label = request["params"]["label"].as_str().unwrap().into();
             }
             json!({ "tab": { "tab_id": session.tab_id, "label": session.label } })
@@ -120,13 +151,20 @@ impl Herdr {
         let peer_session = Arc::clone(&session);
         let peer_stopped = Arc::clone(&stopped);
         let server = thread::spawn(move || {
-            let mut subscriptions = Vec::new();
+            let mut subscriptions: Vec<UnixStream> = Vec::new();
             while !peer_stopped.load(Ordering::Relaxed) {
                 {
                     let mut session = peer_session.lock().unwrap();
                     if session.disconnect {
                         subscriptions.clear();
                         session.disconnect = false;
+                    }
+                    if session.notify {
+                        for stream in &mut subscriptions {
+                            let _ =
+                                writeln!(stream, "{{\"event\":\"pane_updated\",\"data\":{{}}}}");
+                        }
+                        session.notify = false;
                     }
                 }
                 let stream = match listener.accept() {
@@ -157,7 +195,7 @@ impl Herdr {
             .arg(subcommand)
             .env("HERDR_SOCKET_PATH", self.root.join("herdr.sock"))
             .env("HERALDR_STATE_DIR", &self.state_root)
-            .env_remove("HERDR_PLUGIN_CONFIG_DIR")
+            .env("HERDR_PLUGIN_CONFIG_DIR", self.root.join("config"))
             .env("HERDR_PLUGIN_ROOT", env!("CARGO_MANIFEST_DIR"));
         command
     }
@@ -169,6 +207,12 @@ impl Herdr {
             "{}",
             String::from_utf8_lossy(&output.stderr)
         );
+    }
+
+    fn config(&self, config: &Value) {
+        let directory = self.root.join("config");
+        std::fs::create_dir_all(&directory).unwrap();
+        std::fs::write(directory.join("config.json"), config.to_string()).unwrap();
     }
 
     fn reset(&self) {
@@ -297,6 +341,182 @@ fn plugin_config_icons_override_shipped_icons() {
         assert!(output.status.success());
         assert_eq!(herdr.label(), format!("[1] {glyph} lazygit"));
     }
+}
+
+#[test]
+fn enabled_session_titles_follow_the_foreground_agent_and_disappear_at_the_shell() {
+    let herdr = Herdr::start();
+    herdr.config(&json!({
+        "tab_label": ["$jump", "$icon", "$program", "$session_title"],
+        "agent_icons": "none"
+    }));
+    herdr.change(|session| {
+        session.program = "claude".into();
+        session.agent = Some("claude".into());
+        session.title = Some("Repair login".into());
+    });
+    herdr.reconcile();
+    assert!(herdr.label().starts_with("[1] "));
+    assert!(herdr.label().ends_with(" claude ⋅ Repair login"));
+    herdr.change(|session| session.title = Some("Review changes".into()));
+    herdr.reconcile();
+    assert!(herdr.label().ends_with(" claude ⋅ Review changes"));
+    herdr.change(|session| session.program = "fish".into());
+    herdr.reconcile();
+    assert!(herdr.label().ends_with(" fish"));
+    assert!(!herdr.label().contains('⋅'));
+}
+
+#[test]
+fn session_titles_are_opt_in_and_missing_titles_have_no_separator() {
+    let herdr = Herdr::start();
+    herdr.config(&json!({"agent_icons": "none"}));
+    herdr.change(|session| {
+        session.program = "codex".into();
+        session.agent = Some("codex".into());
+        session.title = Some("Review changes".into());
+    });
+    herdr.reconcile();
+    assert!(herdr.label().ends_with(" codex"));
+    herdr.config(&json!({
+        "tab_label": ["$jump", "$icon", "$program", "$session_title"],
+        "agent_icons": "none"
+    }));
+    herdr.change(|session| session.title = None);
+    herdr.reconcile();
+    assert!(herdr.label().ends_with(" codex"));
+    assert!(!herdr.label().contains('⋅'));
+}
+
+#[test]
+fn forced_agent_logos_preserve_numbering_and_explicit_user_icons() {
+    let herdr = Herdr::start();
+    herdr.config(&json!({"agent_icons": "font"}));
+    herdr.change(|session| session.program = "claude".into());
+    herdr.reconcile();
+    assert_eq!(herdr.label(), "[1] \u{e1a0}  claude");
+    std::fs::write(herdr.root.join("config/icons.conf"), "* *\nC claude\n").unwrap();
+    herdr.reconcile();
+    assert_eq!(herdr.label(), "[1] C claude");
+}
+
+#[test]
+fn session_titles_never_adopt_a_manual_tab_until_reset() {
+    let herdr = Herdr::start();
+    herdr.config(&json!({
+        "tab_label": ["$jump", "$icon", "$program", "$session_title"],
+        "agent_icons": "font"
+    }));
+    herdr.change(|session| {
+        session.program = "claude".into();
+        session.agent = Some("claude".into());
+        session.title = Some("Repair login".into());
+        session.label = "[1] Release review".into();
+    });
+    herdr.reconcile();
+    assert_eq!(herdr.label(), "[1] Release review");
+    herdr.reset();
+    assert_eq!(herdr.label(), "[1] \u{e1a0}  claude ⋅ Repair login");
+}
+
+#[test]
+fn focused_poll_reloads_title_preferences_and_keeps_last_good_config() {
+    let mut herdr = Herdr::start();
+    herdr.config(&json!({"agent_icons": "none"}));
+    herdr.watch();
+    herdr.change(|session| {
+        session.program = "claude".into();
+        session.agent = Some("claude".into());
+        session.title = Some("Repair login".into());
+    });
+    herdr.wait_for(|session| session.label.ends_with(" claude"));
+    herdr.config(&json!({
+        "tab_label": ["$jump", "$icon", "$program", "$session_title"],
+        "agent_icons": "none"
+    }));
+    herdr.wait_for(|session| session.label.ends_with(" claude ⋅ Repair login"));
+    std::fs::write(herdr.root.join("config/config.json"), "{").unwrap();
+    herdr.change(|session| session.title = Some("Review changes".into()));
+    herdr.wait_for(|session| session.label.ends_with(" claude ⋅ Review changes"));
+    herdr.config(&json!({"agent_icons": "none"}));
+    herdr.wait_for(|session| session.label.ends_with(" claude"));
+}
+
+#[test]
+fn custom_tokens_reorder_and_reload_without_losing_ownership() {
+    let herdr = Herdr::start();
+    herdr.config(&json!({"tab_label":["$program", "$jump"]}));
+    herdr.reconcile();
+    assert_eq!(herdr.label(), "lazygit [1]");
+    herdr.change(|session| session.leading_tab = true);
+    herdr.reconcile();
+    assert_eq!(herdr.label(), "lazygit [2]");
+    herdr.config(&json!({"tab_label":["$jump", "$program"]}));
+    herdr.reconcile();
+    assert_eq!(herdr.label(), "[2] lazygit");
+}
+
+#[test]
+fn clear_removes_only_the_owned_jump_token_even_with_invalid_config() {
+    let herdr = Herdr::start();
+    herdr.config(&json!({"tab_label":["$program", "$jump", "$session_title"]}));
+    herdr.change(|session| {
+        session.program = "claude".into();
+        session.agent = Some("claude".into());
+        session.title = Some("Review [7] docs".into());
+    });
+    herdr.reconcile();
+    assert_eq!(herdr.label(), "claude [1] ⋅ Review [7] docs");
+    std::fs::write(herdr.root.join("config/config.json"), "{").unwrap();
+    let output = herdr.command("clear").output().unwrap();
+    assert!(output.status.success());
+    assert_eq!(herdr.label(), "claude ⋅ Review [7] docs");
+    herdr.change(|session| session.label = "Manual [1] name".into());
+    let output = herdr.command("clear").output().unwrap();
+    assert!(output.status.success());
+    assert_eq!(herdr.label(), "Manual [1] name");
+}
+
+#[test]
+fn titles_use_the_active_agent_and_sanitize_raw_fallbacks() {
+    let herdr = Herdr::start();
+    herdr.config(
+        &json!({"tab_label":["$jump", "$program", "$session_title"], "session_title_max_width":8}),
+    );
+    herdr.change(|session| {
+        session.program = "claude".into();
+        session.agent = Some("codex".into());
+        session.title = Some("Wrong agent".into());
+    });
+    herdr.reconcile();
+    assert_eq!(herdr.label(), "[1] claude");
+    herdr.change(|session| {
+        session.agent = Some("claude".into());
+        session.title = None;
+        session.raw_title = Some("✳ \u{1b}[31mRepair login\u{1b}[0m".into());
+    });
+    herdr.reconcile();
+    assert_eq!(herdr.label(), "[1] claude ⋅ Repair …");
+}
+
+#[test]
+fn background_agent_titles_follow_pane_updates() {
+    let mut herdr = Herdr::start();
+    herdr.config(&json!({"tab_label":["$jump", "$program", "$session_title"]}));
+    herdr.watch();
+    herdr.change(|session| {
+        session.program = "claude".into();
+        session.agent = Some("claude".into());
+        session.title = Some("Repair login".into());
+        session.background = true;
+        session.notify = true;
+    });
+    herdr.wait_for(|session| session.label == "[1] claude ⋅ Repair login");
+    herdr.change(|session| {
+        session.title = Some("Review changes".into());
+        session.notify = true;
+    });
+    herdr.wait_for(|session| session.label == "[1] claude ⋅ Review changes");
 }
 
 impl Drop for Herdr {
@@ -525,4 +745,41 @@ fn reset_recovers_a_disabled_tab_while_another_session_reconciles() {
     first.change(|session| session.program = "yazi".into());
     first.reconcile();
     assert!(first.label().ends_with(" yazi"));
+}
+
+#[test]
+fn owned_composed_labels_survive_missing_foreground_samples() {
+    for tokens in [json!(["$program", "$jump"]), json!(["$program"])] {
+        let herdr = Herdr::start();
+        let config = herdr.root.join("config");
+        std::fs::create_dir_all(&config).unwrap();
+        std::fs::write(
+            config.join("config.json"),
+            json!({"tab_label": tokens}).to_string(),
+        )
+        .unwrap();
+        let reconcile = || {
+            let output = herdr
+                .command("reconcile")
+                .env("HERDR_PLUGIN_CONFIG_DIR", &config)
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        };
+        reconcile();
+        let label = herdr.label();
+        herdr.change(|session| session.inspection_fails = true);
+        reconcile();
+        assert_eq!(herdr.label(), label);
+        herdr.change(|session| {
+            session.inspection_fails = false;
+            session.program = "nvim".into();
+        });
+        reconcile();
+        assert!(herdr.label().starts_with("nvim"));
+    }
 }

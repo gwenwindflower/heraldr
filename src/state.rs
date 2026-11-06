@@ -20,6 +20,8 @@ use crate::rpc::{Client, home};
 pub struct TabState {
     pub auto: String,
     pub enabled: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unnumbered: Option<String>,
 }
 
 #[derive(Debug, Default)]
@@ -103,19 +105,28 @@ impl Store {
     }
 
     /// Record that Heraldr owns a tab and last set this base label.
-    pub fn record(&mut self, tab: &str, auto: &str) {
+    pub fn record(&mut self, tab: &str, auto: &str, unnumbered: &str) {
         let entry = self.tabs.entry(tab.to_string()).or_default();
-        if !entry.enabled || entry.auto != auto {
+        if !entry.enabled || entry.auto != auto || entry.unnumbered.as_deref() != Some(unnumbered) {
             entry.auto = auto.to_string();
             entry.enabled = true;
+            entry.unnumbered = Some(unnumbered.to_string());
             self.dirty = true;
         }
+    }
+
+    pub fn unnumbered(&self, tab: &str, base: &str) -> Option<&str> {
+        self.tabs
+            .get(tab)
+            .filter(|state| state.enabled && state.auto == base)
+            .and_then(|state| state.unnumbered.as_deref())
     }
 
     fn opt_out(&mut self, tab: &str) {
         let entry = self.tabs.entry(tab.to_string()).or_default();
         entry.auto.clear();
         entry.enabled = false;
+        entry.unnumbered = None;
         self.dirty = true;
     }
 
@@ -191,7 +202,7 @@ mod tests {
     #[test]
     fn owned_tab_follows_heraldr_until_renamed() {
         let mut s = store();
-        s.record("t1", "auto-label");
+        s.record("t1", "auto-label", "auto-label");
         assert!(s.eligible("t1", "auto-label"), "unchanged base stays owned");
         assert!(s.eligible("t1", ""), "cleared label re-adopts");
         assert!(!s.eligible("t1", "my notes"), "manual rename opts out");
@@ -216,8 +227,8 @@ mod tests {
     #[test]
     fn prune_drops_closed_tabs() {
         let mut s = store();
-        s.record("t1", "a");
-        s.record("t2", "b");
+        s.record("t1", "a", "a");
+        s.record("t2", "b", "b");
         s.prune(&HashSet::from(["t1".to_string()]));
         assert_eq!(s.len(), 1);
     }

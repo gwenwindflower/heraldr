@@ -9,7 +9,7 @@ Heraldr gives [Herdr](https://herdr.dev) tabs and sidebar rows compact, live con
 - Agent rows expose the repository and linked worktree through `$space` and `$worktree`.
 - Manual tab names always win.
 
-Heraldr supports Linux and macOS. Its icons require a terminal font with Nerd Font glyphs.
+Heraldr supports Linux and macOS. Its program icons require Nerd Font glyphs; supported agents can use the optional Herdr Agent Icons Max font.
 
 <!-- toc -->
 
@@ -17,6 +17,8 @@ Heraldr supports Linux and macOS. Its icons require a terminal font with Nerd Fo
   - [Update](#update)
 - [Actions](#actions)
   - [Configuration and state](#configuration-and-state)
+    - [Tab labels](#tab-labels)
+    - [Agent font](#agent-font)
 - [Local development](#local-development)
   - [Switch between local and released Heraldr](#switch-between-local-and-released-heraldr)
   - [Checks](#checks)
@@ -37,7 +39,7 @@ You need [Herdr](https://herdr.dev/docs/install/) 0.7.5 or later, Git, and a com
 herdr plugin install gwenwindflower/heraldr
 ```
 
-Herdr previews the plugin commands, then the build hook installs the matching Heraldr release on your `PATH`. It tries Cargo Binstall first when available, then compiles from source with Cargo. Plugin events and actions invoke `heraldr` directly; a workspace, tab, or pane event starts the per-session watcher.
+Herdr previews the plugin commands, then the build hook installs the matching Heraldr release on your `PATH`. It tries Cargo Binstall first when available, then compiles from source with Cargo. Installation creates a commented `config.toml` with every preference set to its default; existing TOML or JSON settings are kept. Plugin events and actions invoke `heraldr` directly; a workspace, tab, or pane event starts the per-session watcher.
 
 Verify the installation:
 
@@ -88,9 +90,50 @@ Plugin invocations keep ownership records and watcher locks in `HERDR_PLUGIN_STA
 
 The watcher retries interrupted event subscriptions while retaining its session lock. It exits if the session remains unavailable; a later plugin event starts it again.
 
+#### Tab labels
+
+Edit the installed `config.toml` beside your `icons.conf`; `herdr plugin config-dir heraldr` prints the directory. Each setting has a comment describing its purpose and accepted values. Plugin commands use `HERDR_PLUGIN_CONFIG_DIR`; standalone commands use `$XDG_CONFIG_HOME/herdr/plugins/config/heraldr`, normally `~/.config/herdr/plugins/config/heraldr`.
+
+Both TOML and JSON settings are accepted; `config.json` takes precedence if both files exist. Installation preserves existing files byte-for-byte. Run `heraldr init-config` to create missing defaults after a direct Cargo install. It uses Herdr's config-directory lookup when available, including Herdr's migration of existing plugin files; it does not need a running server.
+
+To show an agent's session title:
+
+```toml
+tab_label = ["$jump", "$icon", "$program", "$session_title"]
+```
+
+| Token | Value |
+| --- | --- |
+| `$jump` | `[1]` through `[9]` for the tab's current jump position; empty beyond nine |
+| `$icon` | The foreground program's icon, or its agent logo when available |
+| `$program` | The foreground program's display name, such as `fish`, `nvim`, or `claude` |
+| `$session_title` | Herdr's terminal title for the current foreground agent, without a leading activity indicator |
+
+Tokens render in the listed order. Missing values disappear with their separators. A session title follows preceding content with ` ⋅ `; other components use spaces. If every selected value is empty, the foreground program supplies the label. The default is `["$jump", "$icon", "$program"]`; adding `$session_title` opts into titles, and removing it hides them. Token names must be known, unique, and the list must not be empty.
+
+Titles fit `session_title_max_width` terminal columns, including an ellipsis when shortened; the setting accepts 1–256 and defaults to 28. Heraldr removes terminal controls, collapses whitespace, and preserves Unicode graphemes. Herdr styles tab labels as plain text, so every component uses the tab's text color. Manual names keep their existing behavior and are not composed from these tokens.
+
+Settings reload while the watcher runs. Invalid settings leave its last usable preferences in effect; `heraldr reconcile` and `heraldr status` identify invalid configuration by path.
+
+#### Agent font
+
+Heraldr detects the **Herdr Agent Icons Max** font used by [herdr-bar](https://github.com/jeffarese/herdr-bar) and [herdr-radar](https://github.com/hhdebb/herdr-radar). It never installs fonts or changes terminal settings. Follow [herdr-bar's font setup](https://github.com/jeffarese/herdr-bar#agent-icons-at-a-glance), including your terminal's codepoint mapping. For Kitty:
+
+```text
+symbol_map U+E1A0-U+E1B7 Herdr Agent Icons Max
+```
+
+| `agent_icons` | Behavior |
+| --- | --- |
+| `auto` | Use agent logos when the font is found locally; this is the default |
+| `font` | Force logos, useful when the font is in a local terminal attached to a remote Herdr |
+| `none` | Use configured program icons, including the robot for agents |
+
+Local detection cannot verify the terminal's font mapping. Font logos use an extra following space because the font draws into the next cell. An explicit matching row in your `icons.conf` wins over an agent logo; agents without a logo retain the robot fallback.
+
 ## Local development
 
-Development runs on [mise](https://mise.jdx.dev), which manages the shared development tools and task list. Clone the repository, then:
+Development runs on [mise](https://mise.jdx.dev), which owns the task list. Tasks use tools already on your `PATH`. For missing development tools or a project-local version, uncomment their entries under `[tools]` in `mise.toml`, then:
 
 ```bash
 mise trust
@@ -98,9 +141,9 @@ mise install
 mise run hooks:install
 ```
 
-That installs the linters and release tooling `mise.toml` declares, so your machine and CI run the same tools. Rust comes from rustup on your `PATH`; `rust-toolchain.toml` selects stable with clippy and rustfmt. Herdr itself is the other prerequisite mise does not manage.
+`mise install` installs only active declarations. Rust comes from rustup on your `PATH`; `rust-toolchain.toml` selects stable with clippy and rustfmt. Herdr itself is the other prerequisite mise does not manage.
 
-Already have some of those on your `PATH`? Copy `mise.local.toml.example` to `mise.local.toml` (gitignored) and list them under `disable_tools`. mise then skips installing them here and tasks use whatever `command -v` finds; CI installs whatever `mise.toml` resolves, so keep yours current.
+Keep development opt-ins local to the checkout: committed `mise.toml` activates only build or run dependencies. CI selects `mise.ci.toml` with `MISE_ENV=ci` to install its development tools; keep that overlay aligned when changing the tool list or versions. Plugin installs do not opt into the development toolchain.
 
 `mise tasks` lists every task with its description; `mise tasks info <task>` prints one task's full definition, arguments, and source. Tasks are grouped by prefix — `dev:`, `deps:`, `herdr:`, `lint:`, `test:`, `ci-audit:`, `version:`, `release:`, `repo:` — and the common ones carry single-letter aliases.
 
@@ -110,7 +153,7 @@ Put the checkout in front of Herdr:
 mise run dev:reload
 ```
 
-That stops the running watcher, installs the checkout's binary on your `PATH`, and links its manifest. The link points directly at the checkout, so `herdr-plugin.toml` and `icons.conf` stay local. `icons.conf` edits apply live; the binary carries the same map as a fallback when the checkout is unavailable. Rerun `dev:reload` after Rust changes.
+That stops the running watcher, installs the checkout's binary on your `PATH`, initializes missing configuration, and links its manifest. The link points directly at the checkout, so `herdr-plugin.toml` and `icons.conf` stay local. `icons.conf` edits apply live; the binary carries the same map as a fallback when the checkout is unavailable. Rerun `dev:reload` after Rust changes.
 
 `mise run dev` runs local checks and tests, then installs a fresh build from this checkout with `cargo install --path .` and links it into Herdr. Local linking does not run the manifest's release installer or Cargo Binstall.
 

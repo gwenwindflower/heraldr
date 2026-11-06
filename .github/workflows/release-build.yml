@@ -1,6 +1,7 @@
 name: Release build
 
 on:
+  pull_request:
   release:
     types: [published]
   workflow_dispatch:
@@ -14,10 +15,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: release-build-${{ github.event.release.tag_name || inputs.tag }}
-  cancel-in-progress: false
+  group: release-build-${{ github.event.release.tag_name || inputs.tag || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
+  MISE_ENV: ci
   RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
   MISE_TRUSTED_CONFIG_PATHS: ${{ github.workspace }}
 
@@ -38,18 +40,23 @@ jobs:
           - os: macos-15-intel
             target: x86_64-apple-darwin
     steps:
-      - name: Check out release tag
+      - name: Check out build source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          ref: ${{ env.RELEASE_TAG }}
+          ref: ${{ github.event.pull_request.head.sha || env.RELEASE_TAG }}
 
       - name: Install toolchain
         uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
         with:
           cache: false # This workflow publishes release artifacts; a poisoned cache would reach users.
 
+      - name: Verify source version
+        if: github.event_name == 'pull_request'
+        run: mise run version:check
+
       - name: Verify release version
+        if: github.event_name != 'pull_request'
         run: mise run version:check "$RELEASE_TAG"
 
       - name: Build and package
