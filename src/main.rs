@@ -1,12 +1,9 @@
 //! Heraldr — Herdr tab, workspace, and agent chrome.
 //!
-//! Tabs auto-name as "[N] <icon> <program>" after their foreground program
-//! (the shell at a bare prompt), workspaces and agents get the "[N] " prefix
-//! of their 1-9 jump keybind, and manual renames always win. A per-session
-//! watcher daemon drives everything over herdr's socket: pushed events for
-//! structural changes, a focused-pane poll for foreground changes no event
-//! covers. Ported from the pure-fish engine, itself a rework of
-//! qu8n/herdr-automatic-rename.
+//! Tabs compose jump numbers, program icons, names, and optional agent titles.
+//! Sidebar metadata exposes workspace jump numbers and repository context.
+//! A per-session watcher follows events and foreground process transitions;
+//! manual tab names remain under the user's control.
 
 #![allow(
     clippy::struct_field_names,
@@ -17,11 +14,15 @@
     reason = "RPC calls accept owned JSON request values"
 )]
 
+mod agent_icons;
+mod config;
+mod labels;
 mod naming;
 mod reconcile;
 mod rpc;
 mod snapshot;
 mod state;
+mod titles;
 mod watch;
 
 use std::time::Duration;
@@ -30,12 +31,12 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use serde_json::Value;
 
-use crate::naming::Icons;
+use crate::config::Config;
 use crate::reconcile::Pass;
 use crate::rpc::Client;
 use crate::snapshot::Snapshot;
 use crate::state::Store;
-use crate::watch::{PidLock, icon_path};
+use crate::watch::{PidLock, icon_path, load_icons};
 
 #[derive(Parser)]
 #[command(
@@ -48,8 +49,10 @@ their live foreground program, and sidebar rows get composable display-only meta
 nested worktree name) on panes for agent rows. Labels stay bare everywhere else (agents panel, \
 navigator), and manual renames always win. A per-session watcher keeps everything current from \
 herdr's event stream plus a focused-pane poll; herdr plugin events only need to run `heraldr \
-kick` to keep the watcher alive. Icons reload from the hand-edited icons.conf manifest when \
-available and otherwise use the copy compiled into the binary."
+kick` to keep the watcher alive. config.toml composes '$jump', '$icon', '$program', and \
+'$session_title' in tab_label; session titles are opt-in. Supported agents use Herdr Agent \
+Icons Max when detected, with agent_icons set to 'font' to force logos or 'none' for Nerd Font \
+icons. Explicit user icons.conf rows win; compiled icons provide the fallback."
 )]
 struct Cli {
     #[command(subcommand)]
@@ -58,6 +61,8 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Create a commented default configuration without replacing user settings
+    InitConfig,
     /// Run the watcher for this session (kick spawns this; rarely run by hand)
     Watch {
         /// Focused-pane poll interval in milliseconds
@@ -70,7 +75,7 @@ enum Command {
     Reconcile,
     /// Re-adopt the current tab into automatic naming after a manual rename
     Reset,
-    /// Strip all Heraldr chrome and stop the watcher (run before uninstalling)
+    /// Remove jump numbers and sidebar tokens and stop the watcher
     Clear,
     /// Show watcher, socket, and state health
     Status,
@@ -78,6 +83,15 @@ enum Command {
 
 fn main() -> Result<()> {
     match Cli::parse().command {
+        Command::InitConfig => {
+            let (path, created) = config::initialize()?;
+            println!(
+                "{} {}",
+                if created { "Created" } else { "Keeping" },
+                path.display()
+            );
+            Ok(())
+        }
         Command::Watch { poll_ms } => watch::watch(Duration::from_millis(poll_ms)),
         Command::Kick => watch::kick(),
         Command::Reconcile => one_shot(false, None),
@@ -100,11 +114,17 @@ fn main() -> Result<()> {
 
 fn one_shot(clear: bool, force_tab: Option<&str>) -> Result<()> {
     let client = Client::from_env();
-    let icons = Icons::load(&icon_path());
+    let icons = load_icons();
+    let config = if clear {
+        Config::default()
+    } else {
+        Config::load()?
+    };
     let mut state = Store::load(&client);
     Pass {
         client: &client,
         icons: &icons,
+        config: &config,
         state: &mut state,
         clear,
         force_tab,
@@ -138,6 +158,11 @@ fn reset_target() -> Result<Option<String>> {
 
 fn status() {
     let client = Client::from_env();
+    println!("config   {}", config::path().display());
+    match Config::load() {
+        Ok(config) => println!("settings {}", serde_json::json!(config)),
+        Err(error) => println!("settings invalid: {error:#}"),
+    }
     println!("socket   {}", client.socket_path().display());
     match client.call("ping", serde_json::json!({})) {
         Ok(pong) => {
@@ -152,7 +177,7 @@ fn status() {
         None => println!("watcher  not running — any herdr event will kick one off"),
     }
     let icon_path = icon_path();
-    let icons = Icons::load(&icon_path);
+    let icons = load_icons();
     if icons.is_built_in() {
         println!(
             "icons    {} built-in rows ({} unavailable or incomplete)",

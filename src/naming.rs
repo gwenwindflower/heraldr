@@ -11,8 +11,14 @@
 //! Test pins below spell glyphs as `\u{...}` escapes for the same reason.
 
 use std::path::Path;
+use std::sync::OnceLock;
 
 const BUILT_IN_MANIFEST: &str = include_str!("../icons.conf");
+
+pub fn robot_icon() -> &'static str {
+    static ICONS: OnceLock<Icons> = OnceLock::new();
+    ICONS.get_or_init(Icons::built_in).get("claude")
+}
 
 /// Label shown at a bare prompt, and for any program that resolves away.
 pub const SHELL: &str = "fish";
@@ -38,6 +44,7 @@ pub struct Icons {
     rows: Vec<(Vec<String>, String)>,
     fallback: String,
     built_in: bool,
+    user_override: bool,
 }
 
 impl Icons {
@@ -48,6 +55,22 @@ impl Icons {
             Ok(text) => Self::runtime_or_built_in(&text),
             Err(_) => Self::built_in(),
         }
+    }
+
+    pub fn load_user(path: &Path) -> Self {
+        let mut icons = Self::load(path);
+        icons.user_override = !icons.built_in;
+        icons
+    }
+
+    pub fn has_override(&self, program: &str) -> bool {
+        self.user_override && self.has_explicit(program)
+    }
+
+    pub fn has_explicit(&self, program: &str) -> bool {
+        self.rows
+            .iter()
+            .any(|(programs, _)| programs.iter().any(|p| p == program))
     }
 
     fn runtime_or_built_in(text: &str) -> Self {
@@ -114,15 +137,13 @@ pub fn resolve(program: &str) -> &str {
     }
 }
 
-/// The full "<icon> <name>" display label for a program ("" = bare prompt).
-pub fn format(program: &str, icons: &Icons) -> String {
+pub fn display_name(program: &str) -> String {
     let resolved = resolve(program);
     let name = ALIASES
         .iter()
         .find(|(from, _)| *from == resolved)
         .map_or(resolved, |(_, to)| *to);
-    let name: String = name.chars().take(MAX_NAME_LEN).collect();
-    format!("{} {}", icons.get(resolved), name)
+    name.chars().take(MAX_NAME_LEN).collect()
 }
 
 /// The leading "[<digits>] " of a label, when present. Only an all-digit
@@ -227,29 +248,18 @@ mod tests {
     }
 
     #[test]
-    fn format_composes_icon_and_simplified_name() {
-        let icons = manifest();
-        assert_eq!(
-            format("nvim", &icons),
-            format!("{} nvim", icons.get("nvim"))
-        );
-        assert_eq!(format("", &icons), format!("{} fish", icons.get("fish")));
-        assert_eq!(format("cat", &icons), format!("{} fish", icons.get("fish")));
-        assert_eq!(
-            format("spotify_player", &icons),
-            format!("{} spotify", icons.get("spotify_player"))
-        );
-        assert_eq!(
-            format("somecmd", &icons),
-            format!("{} somecmd", icons.get("somecmd"))
-        );
+    fn display_names_use_program_aliases_and_shell_resolution() {
+        assert_eq!(display_name("nvim"), "nvim");
+        assert_eq!(display_name(""), "fish");
+        assert_eq!(display_name("cat"), "fish");
+        assert_eq!(display_name("spotify_player"), "spotify");
+        assert_eq!(display_name("somecmd"), "somecmd");
     }
 
     #[test]
-    fn format_truncates_names_by_codepoint() {
-        let icons = manifest();
+    fn display_name_truncates_names_by_codepoint() {
         let long = "x".repeat(25);
-        let label = format(&long, &icons);
+        let label = display_name(&long);
         assert!(label.ends_with(&"x".repeat(20)));
         assert_eq!(label.chars().filter(|&c| c == 'x').count(), 20);
     }

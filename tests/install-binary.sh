@@ -25,6 +25,7 @@ make_case() {
 	cp "$repo_root/scripts/install-binary.sh" "$root/scripts/install-binary.sh"
 	printf '%s\n' '[package]' 'name = "heraldr"' 'version = "0.0.1"' >"$root/Cargo.toml"
 	: >"$root/install.log"
+	: >"$root/config.log"
 	printf '0\n' >"$root/binstall-exit"
 	printf '%s\n' "$root"
 }
@@ -34,7 +35,11 @@ write_heraldr() {
 	local version="$2"
 	cat >"$path" <<SCRIPT
 #!/bin/sh
-printf '%s\\n' 'heraldr $version'
+case "\${1:-}" in
+  --version) printf '%s\\n' 'heraldr $version' ;;
+  init-config) printf '%s\\n' "\$HERDR_PLUGIN_CONFIG_DIR" >>"\$TEST_CONFIG_LOG" ;;
+  *) exit 1 ;;
+esac
 SCRIPT
 	chmod +x "$path"
 }
@@ -53,7 +58,11 @@ case "$1" in
     printf '%s\n' "$*" >>"$TEST_LOG"
     cat >"$TEST_BIN/heraldr" <<'BINARY'
 #!/bin/sh
-printf '%s\n' 'heraldr 0.0.1'
+case "${1:-}" in
+  --version) printf '%s\n' 'heraldr 0.0.1' ;;
+  init-config) printf '%s\n' "$HERDR_PLUGIN_CONFIG_DIR" >>"$TEST_CONFIG_LOG" ;;
+  *) exit 1 ;;
+esac
 BINARY
     chmod +x "$TEST_BIN/heraldr"
     ;;
@@ -78,7 +87,11 @@ if [[ "$TEST_BINSTALL_EXIT" != 0 ]]; then
 fi
 cat >"$TEST_BIN/heraldr" <<'BINARY'
 #!/bin/sh
-printf '%s\n' 'heraldr 0.0.1'
+case "${1:-}" in
+  --version) printf '%s\n' 'heraldr 0.0.1' ;;
+  init-config) printf '%s\n' "$HERDR_PLUGIN_CONFIG_DIR" >>"$TEST_CONFIG_LOG" ;;
+  *) exit 1 ;;
+esac
 BINARY
 chmod +x "$TEST_BIN/heraldr"
 SCRIPT
@@ -90,7 +103,7 @@ run_installer() {
 	local root="$1"
 	(
 		cd "$root"
-		TEST_BIN="$root/fakebin" TEST_BINSTALL_EXIT="$(<"$root/binstall-exit")" TEST_LOG="$root/install.log" PATH="$root/fakebin:/usr/bin:/bin" ./scripts/install-binary.sh
+		HERDR_PLUGIN_CONFIG_DIR="$root/config" TEST_CONFIG_LOG="$root/config.log" TEST_BIN="$root/fakebin" TEST_BINSTALL_EXIT="$(<"$root/binstall-exit")" TEST_LOG="$root/install.log" PATH="$root/fakebin:/usr/bin:/bin" ./scripts/install-binary.sh
 	)
 }
 
@@ -100,6 +113,7 @@ write_heraldr "$current_root/fakebin/heraldr" 0.0.1
 write_binstall "$current_root"
 run_installer "$current_root" >"$current_root/output.log" 2>&1
 [[ ! -s "$current_root/install.log" ]]
+[[ "$(<"$current_root/config.log")" == "$current_root/config" ]]
 
 install_root="$(make_case install)"
 write_cargo "$install_root"
@@ -108,18 +122,21 @@ run_installer "$install_root" >"$install_root/output.log" 2>&1
 [[ "$(<"$install_root/install.log")" == 'heraldr --manifest-path Cargo.toml --strategies crate-meta-data --locked --force --no-confirm' ]]
 [[ "$("$install_root"/fakebin/heraldr --version)" == 'heraldr 0.0.1' ]]
 [[ ! -e "$install_root/target/release/heraldr" ]]
+[[ "$(<"$install_root/config.log")" == "$install_root/config" ]]
 
 source_root="$(make_case source)"
 write_cargo "$source_root"
 run_installer "$source_root" >"$source_root/output.log" 2>&1
 [[ "$(<"$source_root/install.log")" == 'install --path . --locked --force' ]]
 grep -Eq 'Cargo Binstall.*https://github.com/gwenwindflower/heraldr#install' "$source_root/output.log"
+[[ "$(<"$source_root/config.log")" == "$source_root/config" ]]
 
 fallback_root="$(make_case fallback)"
 write_cargo "$fallback_root"
 write_binstall "$fallback_root" 1
 run_installer "$fallback_root" >"$fallback_root/output.log" 2>&1
 [[ "$(<"$fallback_root/install.log")" == $'heraldr --manifest-path Cargo.toml --strategies crate-meta-data --locked --force --no-confirm\ninstall --path . --locked --force' ]]
+[[ "$(<"$fallback_root/config.log")" == "$fallback_root/config" ]]
 
 missing_cargo_root="$(make_case missing-cargo)"
 if (cd "$missing_cargo_root" && PATH="$missing_cargo_root/fakebin" ./scripts/install-binary.sh) >"$missing_cargo_root/output.log" 2>&1; then

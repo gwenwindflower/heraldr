@@ -17,11 +17,14 @@ use std::time::{Duration, Instant};
 use anyhow::{Context, Result};
 use serde_json::json;
 
+use crate::config::{self, Config};
+use crate::labels;
 use crate::naming::{self, Icons};
 use crate::reconcile::Pass;
 use crate::rpc::Client;
 use crate::snapshot::{Snapshot, foreground_program};
 use crate::state::{Store, session_key, state_dir};
+use crate::titles;
 
 /// Everything that can change a label or a position. The subscription surface
 /// is a superset of what plugin [[events]] deliver — pane.updated and
@@ -109,7 +112,9 @@ pub fn watch(poll: Duration) -> Result<()> {
         }
     });
 
-    full_pass(&client)?;
+    let mut settings = Settings::default();
+    settings.reload();
+    full_pass(&client, &settings.config)?;
     let mut last_full = Instant::now();
     loop {
         match rx.recv_timeout(poll) {
@@ -120,21 +125,20 @@ pub fn watch(poll: Duration) -> Result<()> {
             Ok(Signal::Changed) => {
                 std::thread::sleep(SETTLE);
                 while let Ok(Signal::Changed) = rx.try_recv() {}
-                if full_pass(&client).is_err() {
+                settings.reload();
+                if full_pass(&client, &settings.config).is_err() {
                     return Ok(());
                 }
                 last_full = Instant::now();
-                // Drop the echoes of our own renames; a real event racing
-                // this window is caught by the safety net.
-                while let Ok(Signal::Changed) = rx.try_recv() {}
             }
             Err(mpsc::RecvTimeoutError::Timeout) => {
+                settings.reload();
                 if last_full.elapsed() >= SAFETY_NET {
-                    if full_pass(&client).is_err() {
+                    if full_pass(&client, &settings.config).is_err() {
                         return Ok(());
                     }
                     last_full = Instant::now();
-                } else if focused_pass(&client).is_err() {
+                } else if focused_pass(&client, &settings.config).is_err() {
                     return Ok(());
                 }
             }
@@ -142,14 +146,43 @@ pub fn watch(poll: Duration) -> Result<()> {
     }
 }
 
-fn full_pass(client: &Client) -> Result<()> {
+#[derive(Default)]
+struct Settings {
+    config: Config,
+    error: Option<String>,
+}
+
+impl Settings {
+    fn reload(&mut self) {
+        self.accept(Config::load());
+    }
+
+    fn accept(&mut self, result: Result<Config>) {
+        match result {
+            Ok(config) => {
+                self.config = config;
+                self.error = None;
+            }
+            Err(error) => {
+                let message = format!("{error:#}");
+                if self.error.as_deref() != Some(&message) {
+                    eprintln!("heraldr: {message}");
+                    self.error = Some(message);
+                }
+            }
+        }
+    }
+}
+
+fn full_pass(client: &Client, config: &Config) -> Result<()> {
     // Reload the manifest and the store each pass: icons.conf edits apply
     // live, and one-shot commands (reset, clear) share the store on disk.
-    let icons = Icons::load(&icon_path());
+    let icons = load_icons();
     let mut state = Store::load(client);
     Pass {
         client,
         icons: &icons,
+        config,
         state: &mut state,
         clear: false,
         force_tab: None,
@@ -159,7 +192,7 @@ fn full_pass(client: &Client) -> Result<()> {
 
 /// The between-events poll: name only the focused tab from its pane's live
 /// foreground process. Two socket calls, no cross-tab work.
-fn focused_pass(client: &Client) -> Result<()> {
+fn focused_pass(client: &Client, config: &Config) -> Result<()> {
     let snapshot = Snapshot::fetch(client)?;
     let (Some(pane_id), Some(tab_id)) = (&snapshot.focused_pane_id, &snapshot.focused_tab_id)
     else {
@@ -171,15 +204,24 @@ fn focused_pass(client: &Client) -> Result<()> {
     let Some(program) = foreground_program(client, pane_id).ok().flatten() else {
         return Ok(());
     };
-    let icons = Icons::load(&icon_path());
+    let icons = load_icons();
     let mut state = Store::load(client);
     let label = tab.label();
     let stripped = naming::strip_prefix(label);
     if !state.eligible(&tab.tab_id, stripped) {
         return state.save();
     }
-    let name = naming::format(&program, &icons);
-    let want = format!("{}{name}", naming::index_prefix(label).unwrap_or(""));
+    let position = snapshot
+        .tabs
+        .iter()
+        .filter(|candidate| candidate.workspace_id == tab.workspace_id)
+        .position(|candidate| candidate.tab_id == tab.tab_id)
+        .map_or(0, |position| position + 1);
+    let title = titles::format(
+        snapshot.foreground_title(pane_id, &program),
+        config.session_title_max_width,
+    );
+    let want = labels::format(position, &program, Some(&title), &icons, config);
     if want != label
         && client
             .call("tab.rename", json!({ "tab_id": tab.tab_id, "label": want }))
@@ -187,7 +229,8 @@ fn focused_pass(client: &Client) -> Result<()> {
     {
         return Ok(());
     }
-    state.record(&tab.tab_id, &name);
+    let unnumbered = labels::format(0, &program, Some(&title), &icons, config);
+    state.record(&tab.tab_id, naming::strip_prefix(&want), &unnumbered);
     state.save()
 }
 
@@ -198,13 +241,20 @@ pub fn plugin_root() -> PathBuf {
 }
 
 pub fn icon_path() -> PathBuf {
-    if let Some(config) = std::env::var_os("HERDR_PLUGIN_CONFIG_DIR") {
-        let path = PathBuf::from(config).join("icons.conf");
-        if path.is_file() {
-            return path;
-        }
+    let path = config::directory().join("icons.conf");
+    if path.is_file() {
+        return path;
     }
     plugin_root().join("icons.conf")
+}
+
+pub fn load_icons() -> Icons {
+    let path = config::directory().join("icons.conf");
+    if path.is_file() {
+        Icons::load_user(&path)
+    } else {
+        Icons::load(&icon_path())
+    }
 }
 
 /// Spawn a detached watcher unless one already holds the session's lock. The

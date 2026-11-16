@@ -67,6 +67,10 @@ pub struct Pane {
     pub workspace_id: Option<String>,
     #[serde(default)]
     pub focused: bool,
+    #[serde(default)]
+    pub terminal_title: Option<String>,
+    #[serde(default)]
+    pub terminal_title_stripped: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -112,6 +116,16 @@ impl Tab {
     }
 }
 
+impl Pane {
+    pub fn session_title(&self) -> Option<&str> {
+        self.terminal_title_stripped.as_deref().or_else(|| {
+            self.terminal_title
+                .as_deref()
+                .map(crate::titles::strip_activity)
+        })
+    }
+}
+
 impl Agent {
     /// The rename target: agent commands address the hosting terminal.
     pub fn target(&self) -> Option<&str> {
@@ -134,6 +148,23 @@ impl Agent {
 }
 
 impl Snapshot {
+    pub fn foreground_title(&self, pane_id: &str, program: &str) -> Option<&str> {
+        let agent = self
+            .agents
+            .iter()
+            .find(|agent| agent.pane_id.as_deref() == Some(pane_id))?;
+        let detected = agent.detected();
+        let foreground = crate::agent_icons::canonical_agent(program).unwrap_or(program);
+        let detected = crate::agent_icons::canonical_agent(detected).unwrap_or(detected);
+        if detected.is_empty() || foreground != detected {
+            return None;
+        }
+        self.panes
+            .iter()
+            .find(|pane| pane.pane_id == pane_id)?
+            .session_title()
+    }
+
     pub fn fetch(client: &Client) -> Result<Self> {
         let result = client.call("session.snapshot", json!({}))?;
         let snapshot = result
@@ -198,4 +229,84 @@ pub fn foreground_program(client: &Client, pane_id: &str) -> Result<Option<Strin
         let base = base.rsplit('/').next().unwrap_or("");
         (!base.is_empty()).then(|| base.to_string())
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn titled_snapshot(agent: &str) -> Snapshot {
+        serde_json::from_value(json!({
+            "panes": [
+                {"pane_id":"w1:p1", "terminal_title_stripped":"Repair login"},
+                {"pane_id":"w1:p2", "terminal_title_stripped":"Review schema"}
+            ],
+            "agents": [{"pane_id":"w1:p1", "agent":agent}]
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn only_the_foreground_agents_pane_supplies_a_title() {
+        let snapshot = titled_snapshot("claude");
+        assert_eq!(
+            snapshot.foreground_title("w1:p1", "claude"),
+            Some("Repair login")
+        );
+        assert_eq!(snapshot.foreground_title("w1:p1", "fish"), None);
+        assert_eq!(snapshot.foreground_title("w1:p1", "codex"), None);
+        assert_eq!(snapshot.foreground_title("w1:p2", "claude"), None);
+    }
+
+    #[test]
+    fn agent_aliases_match_their_canonical_foreground_program() {
+        assert_eq!(
+            titled_snapshot("claude").foreground_title("w1:p1", "claude-code"),
+            Some("Repair login")
+        );
+        assert_eq!(
+            titled_snapshot("cursor-agent").foreground_title("w1:p1", "cursor"),
+            Some("Repair login")
+        );
+    }
+
+    #[test]
+    fn custom_detected_agents_require_an_exact_foreground_match() {
+        let snapshot = titled_snapshot("custom-agent");
+        assert_eq!(
+            snapshot.foreground_title("w1:p1", "custom-agent"),
+            Some("Repair login")
+        );
+        assert_eq!(snapshot.foreground_title("w1:p1", "custom"), None);
+        assert_eq!(snapshot.foreground_title("w1:p1", "fish"), None);
+    }
+
+    #[test]
+    fn pane_title_prefers_the_spinner_free_snapshot_value() {
+        let pane: Pane = serde_json::from_value(json!({
+            "pane_id": "w1:p1",
+            "terminal_title": "✳ Repair login",
+            "terminal_title_stripped": "Repair login"
+        }))
+        .unwrap();
+        assert_eq!(pane.session_title(), Some("Repair login"));
+    }
+
+    #[test]
+    fn pane_title_falls_back_when_the_stripped_field_is_missing() {
+        let pane: Pane = serde_json::from_value(json!({
+            "pane_id": "w1:p1", "terminal_title": "Repair login"
+        }))
+        .unwrap();
+        assert_eq!(pane.session_title(), Some("Repair login"));
+    }
+
+    #[test]
+    fn an_empty_stripped_title_does_not_restore_a_spinner_only_title() {
+        let pane: Pane = serde_json::from_value(json!({
+            "pane_id": "w1:p1", "terminal_title": "✳", "terminal_title_stripped": ""
+        }))
+        .unwrap();
+        assert_eq!(pane.session_title(), Some(""));
+    }
 }

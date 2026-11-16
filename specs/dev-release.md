@@ -34,3 +34,4 @@ Every release is cut from a clean `main` by a human-gated pipeline that a contri
 - **dev-R026** — CI checks and tests run only after a separate workflow audit job succeeds; a failed audit skips them.
 - **dev-R027** — CI workflow audits run online; `ci-audit:zizmor` may write only to zizmor's cache, and commit hooks run zizmor offline.
 - **dev-R028** — Publishing jobs use the release environment.
+- **dev-R029** — Pull requests build and package their head commit on all four release targets, retaining archives and checksums as workflow artifacts without publishing release assets or a crate.
