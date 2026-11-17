@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::io::{BufRead, BufReader, Write};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::PathBuf;
@@ -23,6 +24,8 @@ struct Session {
     raw_title: Option<String>,
     background: bool,
     leading_tab: bool,
+    /// Unfocused tabs after the main tab, keyed by `<workspace>:<tab>` ID.
+    extra_tabs: BTreeMap<String, ExtraTab>,
     notify: bool,
     inspection_fails: bool,
     leader_missing: bool,
@@ -31,6 +34,26 @@ struct Session {
     renames: usize,
     disconnect: bool,
     subscriptions: usize,
+}
+
+struct ExtraTab {
+    label: String,
+    panes: usize,
+}
+
+impl ExtraTab {
+    fn new(label: &str, panes: usize) -> Self {
+        Self {
+            label: label.into(),
+            panes,
+        }
+    }
+
+    fn workspace(tab_id: &str) -> &str {
+        tab_id
+            .split_once(':')
+            .map_or(tab_id, |(workspace, _)| workspace)
+    }
 }
 
 struct Herdr {
@@ -82,9 +105,22 @@ fn answer(
             if session.background {
                 panes.push(json!({"workspace_id":"w1", "tab_id":"w1:t2", "pane_id":"w1:p2", "focused":true}));
             }
+            let mut workspaces = vec![json!({ "workspace_id": "w1", "label": "project" })];
+            for (tab_id, extra) in &session.extra_tabs {
+                let workspace = ExtraTab::workspace(tab_id);
+                if !workspaces.iter().any(|w| w["workspace_id"] == workspace) {
+                    workspaces.push(json!({ "workspace_id": workspace, "label": workspace }));
+                }
+                tabs.push(json!({ "workspace_id": workspace, "tab_id": tab_id,
+                    "label": extra.label, "pane_count": extra.panes }));
+                for pane in 0..extra.panes {
+                    panes.push(json!({ "workspace_id": workspace, "tab_id": tab_id,
+                        "pane_id": format!("{tab_id}:p{pane}") }));
+                }
+            }
             json!({ "snapshot": {
                 "focused_tab_id": focused_tab, "focused_pane_id": focused_pane,
-                "workspaces": [{ "workspace_id": "w1", "label": "project" }],
+                "workspaces": workspaces,
                 "tabs": tabs, "panes": panes,
                 "agents": session.agent.as_ref().map(|agent| vec![json!({
                     "pane_id": "w1:p1", "agent": agent
@@ -105,8 +141,14 @@ fn answer(
         }
         "tab.rename" => {
             session.renames += 1;
-            if !session.rename_fails && request["params"]["tab_id"] == session.tab_id {
-                session.label = request["params"]["label"].as_str().unwrap().into();
+            let tab_id = request["params"]["tab_id"].as_str().unwrap().to_string();
+            let label = request["params"]["label"].as_str().unwrap().to_string();
+            if !session.rename_fails {
+                if tab_id == session.tab_id {
+                    session.label = label;
+                } else if let Some(extra) = session.extra_tabs.get_mut(&tab_id) {
+                    extra.label = label;
+                }
             }
             json!({ "tab": { "tab_id": session.tab_id, "label": session.label } })
         }
@@ -215,10 +257,13 @@ impl Herdr {
         std::fs::write(directory.join("config.json"), config.to_string()).unwrap();
     }
 
-    fn reset(&self) {
+    /// Relabel as a plugin action invoked from the main tab would.
+    fn relabel(&self, scope: &str) {
         let tab_id = self.session.lock().unwrap().tab_id.clone();
         let output = self
-            .command("reset")
+            .command("relabel")
+            .args(["--scope", scope])
+            .env("HERDR_WORKSPACE_ID", ExtraTab::workspace(&tab_id))
             .env("HERDR_TAB_ID", tab_id)
             .output()
             .unwrap();
@@ -227,6 +272,21 @@ impl Herdr {
             "{}",
             String::from_utf8_lossy(&output.stderr)
         );
+    }
+
+    fn restart(&self) {
+        let output = self.command("restart").output().unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    fn extra_label(&self, tab_id: &str) -> String {
+        self.session.lock().unwrap().extra_tabs[tab_id]
+            .label
+            .clone()
     }
 
     fn watch(&mut self) {
@@ -401,7 +461,7 @@ fn forced_agent_logos_preserve_numbering_and_explicit_user_icons() {
 }
 
 #[test]
-fn session_titles_never_adopt_a_manual_tab_until_reset() {
+fn session_titles_never_adopt_a_manual_tab_until_relabeled() {
     let herdr = Herdr::start();
     herdr.config(&json!({
         "tab_label": ["$jump", "$icon", "$program", "$session_title"],
@@ -415,7 +475,7 @@ fn session_titles_never_adopt_a_manual_tab_until_reset() {
     });
     herdr.reconcile();
     assert_eq!(herdr.label(), "[1] Release review");
-    herdr.reset();
+    herdr.relabel("tab");
     assert_eq!(herdr.label(), "[1] \u{e1a0}  claude ⋅ Repair login");
 }
 
@@ -721,7 +781,7 @@ fn shared_manual_opt_out_survives_session_initialization() {
 }
 
 #[test]
-fn reset_recovers_a_disabled_tab_while_another_session_reconciles() {
+fn relabel_recovers_a_disabled_tab_while_another_session_reconciles() {
     let first = Herdr::start();
     let mut second = Herdr::start();
     second.state_root = first.state_root.clone();
@@ -739,7 +799,7 @@ fn reset_recovers_a_disabled_tab_while_another_session_reconciles() {
     first.reconcile();
     assert_eq!(first.label(), "[1] G lazygit");
     second.reconcile();
-    first.reset();
+    first.relabel("tab");
     assert!(first.label().ends_with(" fish"));
     second.reconcile();
     first.change(|session| session.program = "yazi".into());
@@ -782,4 +842,74 @@ fn owned_composed_labels_survive_missing_foreground_samples() {
         reconcile();
         assert!(herdr.label().starts_with("nvim"));
     }
+}
+
+#[test]
+fn relabel_scopes_adopt_manual_tabs_in_the_tab_workspace_or_session() {
+    let herdr = Herdr::start();
+    herdr.change(|session| {
+        session.label = "Release review".into();
+        session
+            .extra_tabs
+            .insert("w1:t3".into(), ExtraTab::new("Notes", 1));
+        session
+            .extra_tabs
+            .insert("w2:t1".into(), ExtraTab::new("Scratch", 1));
+    });
+    herdr.reconcile();
+    assert_eq!(herdr.label(), "[1] Release review");
+    assert_eq!(herdr.extra_label("w1:t3"), "[2] Notes");
+
+    herdr.relabel("tab");
+    assert!(herdr.label().ends_with(" lazygit"), "{}", herdr.label());
+    assert_eq!(herdr.extra_label("w1:t3"), "[2] Notes");
+
+    herdr.relabel("workspace");
+    assert!(herdr.extra_label("w1:t3").starts_with("[2] "));
+    assert!(herdr.extra_label("w1:t3").ends_with(" lazygit"));
+    assert_eq!(herdr.extra_label("w2:t1"), "[1] Scratch");
+
+    herdr.relabel("all");
+    assert!(herdr.extra_label("w2:t1").starts_with("[1] "));
+    assert!(herdr.extra_label("w2:t1").ends_with(" lazygit"));
+}
+
+#[test]
+fn relabeled_background_split_tab_takes_its_name_once_readable() {
+    let herdr = Herdr::start();
+    herdr.change(|session| {
+        session
+            .extra_tabs
+            .insert("w1:t3".into(), ExtraTab::new("Notes", 2));
+    });
+    herdr.reconcile();
+    herdr.relabel("all");
+    assert_eq!(herdr.extra_label("w1:t3"), "[2] Notes");
+    herdr.reconcile();
+    herdr.change(|session| session.extra_tabs.get_mut("w1:t3").unwrap().panes = 1);
+    herdr.reconcile();
+    assert!(herdr.extra_label("w1:t3").ends_with(" lazygit"));
+}
+
+#[test]
+fn restart_replaces_the_watcher_and_keeps_ownership() {
+    let mut herdr = Herdr::start();
+    herdr.watch();
+    let mut previous = herdr.watcher.take().unwrap();
+    herdr.restart();
+    let deadline = Instant::now() + Duration::from_secs(3);
+    while previous.try_wait().unwrap().is_none() {
+        assert!(Instant::now() < deadline, "previous watcher kept running");
+        thread::sleep(Duration::from_millis(5));
+    }
+    herdr.follows("nvim");
+    herdr.restart();
+    herdr.follows("yazi");
+}
+
+#[test]
+fn restart_starts_a_watcher_when_none_is_running() {
+    let mut herdr = Herdr::start();
+    herdr.restart();
+    herdr.follows("nvim");
 }

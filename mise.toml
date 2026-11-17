@@ -74,13 +74,17 @@ run = "herdr plugin install gwenwindflower/heraldr"
 description = "Remove the plugin from Herdr, leaving Heraldr's user config in place"
 run = "herdr plugin uninstall heraldr"
 
-[tasks."herdr:clear"]
+[tasks."herdr:stop-clear-all"]
 description = "Stop the running watcher and remove Heraldr's display metadata"
-run = "herdr plugin action invoke heraldr.clear"
+run = "herdr plugin action invoke heraldr.stop-clear-all"
 
-[tasks."herdr:reset"]
-description = "Adopt the current tab back into automatic naming after a manual rename"
-run = "herdr plugin action invoke heraldr.reset"
+[tasks."herdr:restart"]
+description = "Replace the running watcher with one from the binary on PATH, keeping labels"
+run = "herdr plugin action invoke heraldr.restart"
+
+[tasks."herdr:relabel"]
+description = "Return every tab in the session to automatic naming, replacing manual names"
+run = "herdr plugin action invoke heraldr.relabel-all"
 
 [tasks."herdr:status"]
 description = "Report how Herdr sees Heraldr: linked or installed, its version, events, and actions"
@@ -95,16 +99,16 @@ run = ["mise run check", "mise run dev:reload"]
 
 [tasks."dev:reload"]
 description = "Stop the watcher, install the checkout, and link it into Herdr"
-run = ["mise run herdr:clear", "mise run install", "mise run herdr:link"]
+run = ["mise run herdr:stop-clear-all", "mise run install", "mise run herdr:link"]
 
 [tasks."dev:local"]
 description = "Replace a GitHub install with this checkout"
-run = ["mise run herdr:clear", "mise run herdr:uninstall", "mise run install", "mise run herdr:link"]
+run = ["mise run herdr:stop-clear-all", "mise run herdr:uninstall", "mise run install", "mise run herdr:link"]
 
 [tasks."dev:released"]
 description = "Replace the checkout with the published plugin, as a user receives it"
 run = [
-  "mise run herdr:clear",
+  "mise run herdr:stop-clear-all",
   "mise run herdr:unlink",
   "cargo binstall heraldr --git https://github.com/gwenwindflower/heraldr",
   "mise run herdr:install",

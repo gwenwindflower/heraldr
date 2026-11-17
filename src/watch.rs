@@ -11,16 +11,17 @@ use std::fs::{File, OpenOptions};
 use std::io::{BufRead, Write};
 use std::os::fd::AsRawFd;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use serde_json::json;
 
 use crate::config::{self, Config};
 use crate::labels;
 use crate::naming::{self, Icons};
-use crate::reconcile::Pass;
+use crate::reconcile::{Pass, Relabel};
 use crate::rpc::Client;
 use crate::snapshot::{Snapshot, foreground_program};
 use crate::state::{Store, session_key, state_dir};
@@ -70,11 +71,21 @@ enum Signal {
     Gone,
 }
 
+/// Set by SIGTERM; the watcher exits between passes so a rename and its
+/// ownership record always land together.
+static STOPPING: AtomicBool = AtomicBool::new(false);
+
+extern "C" fn request_stop(_: libc::c_int) {
+    STOPPING.store(true, Ordering::SeqCst);
+}
+
 pub fn watch(poll: Duration) -> Result<()> {
     let client = Client::from_env();
     let Some(_lock) = PidLock::acquire(&client)? else {
         return Ok(()); // another watcher already owns this session
     };
+    let handler: extern "C" fn(libc::c_int) = request_stop;
+    unsafe { libc::signal(libc::SIGTERM, handler as libc::sighandler_t) };
 
     let reader = client.subscribe(SUBSCRIPTIONS)?;
     let subscriber = client.clone();
@@ -117,6 +128,9 @@ pub fn watch(poll: Duration) -> Result<()> {
     full_pass(&client, &settings.config)?;
     let mut last_full = Instant::now();
     loop {
+        if STOPPING.load(Ordering::SeqCst) {
+            return Ok(());
+        }
         match rx.recv_timeout(poll) {
             Ok(Signal::Gone) | Err(mpsc::RecvTimeoutError::Disconnected) => {
                 // Server gone or restarted; exit and let the next kick revive us.
@@ -176,7 +190,7 @@ impl Settings {
 
 fn full_pass(client: &Client, config: &Config) -> Result<()> {
     // Reload the manifest and the store each pass: icons.conf edits apply
-    // live, and one-shot commands (reset, clear) share the store on disk.
+    // live, and one-shot commands (relabel, clear) share the store on disk.
     let icons = load_icons();
     let mut state = Store::load(client);
     Pass {
@@ -185,7 +199,7 @@ fn full_pass(client: &Client, config: &Config) -> Result<()> {
         config,
         state: &mut state,
         clear: false,
-        force_tab: None,
+        relabel: &Relabel::Nothing,
     }
     .run()
 }
@@ -276,13 +290,27 @@ pub fn kick() -> Result<()> {
     Ok(())
 }
 
-pub fn stop() -> bool {
+/// Stop the session's watcher, if any, and wait until it releases the lock.
+pub fn stop() -> Result<()> {
     let client = Client::from_env();
     let Some(pid) = PidLock::holder(&client) else {
-        return false;
+        return Ok(());
     };
     unsafe { libc::kill(pid, libc::SIGTERM) };
-    true
+    let deadline = Instant::now() + Duration::from_secs(2);
+    while PidLock::holder(&client).is_some() {
+        if Instant::now() >= deadline {
+            bail!("watcher {pid} is still running after SIGTERM; stop it with `kill {pid}`");
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    Ok(())
+}
+
+/// Replace the session's watcher with one from the current binary.
+pub fn restart() -> Result<()> {
+    stop()?;
+    kick()
 }
 
 /// One watcher per session, enforced with flock on a pidfile keyed by the
