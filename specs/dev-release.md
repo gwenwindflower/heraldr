@@ -35,3 +35,5 @@ Every release is cut from a clean `main` by a human-gated pipeline that a contri
 - **dev-R027** — CI workflow audits run online; `ci-audit:zizmor` may write only to zizmor's cache, and commit hooks run zizmor offline.
 - **dev-R028** — Publishing jobs use the release environment.
 - **dev-R029** — Pull requests build and package their head commit on all four release targets, retaining archives and checksums as workflow artifacts without publishing release assets or a crate.
+- **dev-R030** — When `dev:local` runs from the checkout Herdr already links, it changes nothing; it replaces a GitHub install or a link to any other checkout with the calling checkout.
+- **dev-R031** — Tasks that swap the Heraldr build install and link the replacement before restarting the watcher, so a link to a deleted checkout never blocks the swap.

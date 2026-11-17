@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+#MISE description="Point Herdr at this checkout, replacing a GitHub install or another checkout's link"
+
+set -euo pipefail
+cd "${MISE_PROJECT_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+
+checkout="$(pwd -P)"
+listing="$(herdr plugin list --plugin heraldr --json)"
+source_kind="$(grep -oE '"source":\{"kind":"[^"]*"' <<<"$listing" | sed -E 's/.*"([^"]*)"$/\1/' || true)"
+plugin_root="$(grep -oE '"plugin_root":"[^"]*"' <<<"$listing" | sed -E 's/.*"([^"]*)"$/\1/' || true)"
+
+case "$source_kind" in
+"")
+	printf 'Heraldr is not installed in Herdr; linking %s.\n' "$checkout"
+	;;
+local)
+	linked_root="$(cd "$plugin_root" 2>/dev/null && pwd -P || printf '%s' "$plugin_root")"
+	if [[ "$linked_root" == "$checkout" ]]; then
+		printf 'Herdr already links %s. Run "mise run dev:reload" to rebuild it.\n' "$checkout"
+		exit 0
+	fi
+	printf 'Replacing the link to %s with %s.\n' "$plugin_root" "$checkout"
+	herdr plugin unlink heraldr
+	;;
+*)
+	printf 'Replacing the %s install with %s.\n' "$source_kind" "$checkout"
+	herdr plugin uninstall heraldr
+	;;
+esac
+
+mise run install
+mise run herdr:link
+mise run herdr:restart
