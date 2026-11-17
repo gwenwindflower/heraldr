@@ -1,6 +1,6 @@
 [package]
 name = "heraldr"
-version = "0.0.3"
+version = "0.0.4"
 edition = "2024"
 description = "Reactive labels and chrome for Herdr tabs, workspaces, and agents"
 readme = "README.md"
