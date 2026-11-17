@@ -2,6 +2,31 @@
 
 Shipped Phases, newest first. Each entry keeps the Phase header, Objectives, and Tasks verbatim with the boxes checked, followed by a short narrative of decisions and surprises.
 
+## Phase 11: Relabel and restart actions
+
+**Requirements**: nm-R004, nm-R017, nm-R024–nm-R026, dev-R030, dev-R031
+
+### Relabel tabs by scope
+
+- [x] Relabel the invoking tab, its workspace, or the whole session
+- [x] Name unreadable background tabs on their next readable pass
+
+### Restart the watcher
+
+- [x] Replace a running or missing watcher without losing ownership
+- [x] Publish relabel, restart, and clear actions with descriptive titles
+
+### Make dev swaps idempotent
+
+- [x] Restart after installing in every swap task
+- [x] Skip, relink, or replace an install according to what `dev:local` finds
+
+The `reset` action became three relabel scopes, with IDs `relabel-tab`, `relabel-workspace`, and `relabel-all`. Keybindings bound to `heraldr.reset` need the new ID. A relabel adopts each tab at its current label rather than forgetting it. A forgotten background split would otherwise be seen as hand-named on the next pass and opted out again.
+
+The restart test exposed a race shared with `clear`. A SIGTERM that landed between a rename and the ownership save made the replacement watcher treat Heraldr's own label as a manual name. The watcher now finishes its pass before exiting, and `stop` waits for the lock to clear.
+
+Swap tasks restart after installing, so a link to a removed worktree no longer aborts them. `dev:released` needs a published release that has the `restart` action. `dev:local` reads `herdr plugin list --json` with grep and sed, because jq is an opt-in development tool.
+
 ## Phase 9: Rust template setup alignment
 
 **Requirements**: dev-R008, dev-R009, dev-R022, dev-R025, dev-R026, dev-R028

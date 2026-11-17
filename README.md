@@ -159,13 +159,13 @@ Put the checkout in front of Herdr:
 mise run dev:reload
 ```
 
-That stops the running watcher, installs the checkout's binary on your `PATH`, initializes missing configuration, and links its manifest. The link points directly at the checkout, so `herdr-plugin.toml` and `icons.conf` stay local. `icons.conf` edits apply live; the binary carries the same map as a fallback when the checkout is unavailable. Rerun `dev:reload` after Rust changes.
+That installs the checkout's binary on your `PATH`, initializes missing configuration, links its manifest, and then restarts the watcher on the new binary. Every swap task restarts last, so a link to a deleted worktree never blocks it. The link points directly at the checkout, so `herdr-plugin.toml` and `icons.conf` stay local. `icons.conf` edits apply live; the binary carries the same map as a fallback when the checkout is unavailable. Rerun `dev:reload` after Rust changes.
 
 `mise run dev` runs local checks and tests, then installs a fresh build from this checkout with `cargo install --path .` and links it into Herdr. Local linking does not run the manifest's release installer or Cargo Binstall.
 
 ### Switch between local and released Heraldr
 
-`dev:local` replaces a GitHub install with the checkout. `dev:released` swaps back to the published plugin, for testing a release the way a user receives it.
+`dev:local` points Herdr at the checkout you run it from. It replaces a GitHub install or a link to another worktree, deleted ones included, and changes nothing when Herdr already links this checkout. `dev:released` swaps back to the published plugin, for testing a release the way a user receives it.
 
 `herdr:unlink` leaves the checkout alone, and unlinking, uninstalling, and reinstalling all leave Heraldr's user config in place. Print its stable location with `herdr plugin config-dir heraldr` — with Herdr's default paths it lives under `~/.config/herdr/plugins/config/heraldr`, separate from either source checkout.
 

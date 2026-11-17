@@ -98,20 +98,16 @@ alias = "d"
 run = ["mise run check", "mise run dev:reload"]
 
 [tasks."dev:reload"]
-description = "Stop the watcher, install the checkout, and link it into Herdr"
-run = ["mise run herdr:stop-clear-all", "mise run install", "mise run herdr:link"]
-
-[tasks."dev:local"]
-description = "Replace a GitHub install with this checkout"
-run = ["mise run herdr:stop-clear-all", "mise run herdr:uninstall", "mise run install", "mise run herdr:link"]
+description = "Install the checkout, link it into Herdr, and restart the watcher on the new binary"
+run = ["mise run install", "mise run herdr:link", "mise run herdr:restart"]
 
 [tasks."dev:released"]
 description = "Replace the checkout with the published plugin, as a user receives it"
 run = [
-  "mise run herdr:stop-clear-all",
   "mise run herdr:unlink",
   "cargo binstall heraldr --git https://github.com/gwenwindflower/heraldr",
   "mise run herdr:install",
+  "mise run herdr:restart",
 ]
 
 # Tests
@@ -129,6 +125,10 @@ run = "./tests/install-binary.sh"
 [tasks."test:versioning"]
 description = "Exercise the version tasks against sandbox repositories"
 run = "./tests/versioning.sh"
+
+[tasks."test:dev-local"]
+description = "Exercise dev:local against fake Herdr installs, links, and missing checkouts"
+run = "bash tests/dev-local.sh"
 
 [tasks."test:workflows"]
 description = "Verify automated gates select noninteractive tests without installing Heraldr"
