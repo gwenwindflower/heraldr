@@ -58,27 +58,33 @@ cargo install --git https://github.com/gwenwindflower/heraldr --locked
 
 ### Update
 
-Stop the running watcher, then reinstall the plugin. Its build hook updates the binary on your `PATH`:
+Reinstall the plugin, then restart the watcher on the new binary. The build hook updates the binary on your `PATH`:
 
 ```bash
-herdr plugin action invoke heraldr.clear
 herdr plugin install gwenwindflower/heraldr
+herdr plugin action invoke heraldr.restart
 ```
 
-The next workspace, tab, or pane event starts the replacement watcher. Herdr refuses to replace a local link with a GitHub install; [switch back to the released plugin](#switch-between-local-and-released-heraldr) first.
+Herdr refuses to replace a local link with a GitHub install; [switch back to the released plugin](#switch-between-local-and-released-heraldr) first.
 
 ## Actions
 
-A manual tab rename opts that tab out of automatic naming. Adopt the current tab again with:
+Run these from Herdr's action palette or with `herdr plugin action invoke heraldr.<id>`. "This tab" and "this workspace" mean the pane that invoked the action, or whatever Herdr has focused.
 
-```bash
-herdr plugin action invoke heraldr.reset
-```
+| Action | What it does |
+| --- | --- |
+| `relabel-tab` | Returns this tab to automatic naming, replacing a manual name. |
+| `relabel-workspace` | Relabels every tab in this workspace. |
+| `relabel-all` | Relabels every tab in the session. |
+| `restart` | Replaces the watcher with a fresh one from the `heraldr` on your `PATH`, keeping labels and manual names. Use it when labels stop updating, or after updating. |
+| `stop-clear-all` | Stops the watcher and strips jump numbers, icons, and sidebar tokens. The next tab or pane event starts the watcher again. |
+
+A manual tab rename opts that tab out of automatic naming until you relabel it. A relabeled background tab split into several panes keeps its label until you next focus it, because Heraldr can only read its foreground program then.
 
 Before uninstalling, stop the watcher and remove Heraldr's display metadata:
 
 ```bash
-herdr plugin action invoke heraldr.clear
+herdr plugin action invoke heraldr.stop-clear-all
 herdr plugin uninstall heraldr
 ```
 

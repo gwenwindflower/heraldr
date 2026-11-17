@@ -27,12 +27,12 @@ mod watch;
 
 use std::time::Duration;
 
-use anyhow::Result;
-use clap::{Parser, Subcommand};
+use anyhow::{Context, Result};
+use clap::{Parser, Subcommand, ValueEnum};
 use serde_json::Value;
 
 use crate::config::Config;
-use crate::reconcile::Pass;
+use crate::reconcile::{Pass, Relabel};
 use crate::rpc::Client;
 use crate::snapshot::Snapshot;
 use crate::state::Store;
@@ -73,8 +73,14 @@ enum Command {
     Kick,
     /// Run one full reconcile pass now
     Reconcile,
-    /// Re-adopt the current tab into automatic naming after a manual rename
-    Reset,
+    /// Adopt tabs into automatic naming now, manual names included
+    Relabel {
+        /// Which tabs to relabel; tab and workspace follow the invoking pane, else focus
+        #[arg(long, value_enum, default_value_t = Scope::Tab)]
+        scope: Scope,
+    },
+    /// Replace the session's watcher with one from this binary, keeping labels
+    Restart,
     /// Remove jump numbers and sidebar tokens and stop the watcher
     Clear,
     /// Show watcher, socket, and state health
@@ -94,16 +100,13 @@ fn main() -> Result<()> {
         }
         Command::Watch { poll_ms } => watch::watch(Duration::from_millis(poll_ms)),
         Command::Kick => watch::kick(),
-        Command::Reconcile => one_shot(false, None),
-        Command::Reset => {
-            let tab = reset_target()?;
-            one_shot(false, tab.as_deref())
-        }
+        Command::Reconcile => one_shot(false, &Relabel::Nothing),
+        Command::Relabel { scope } => one_shot(false, &relabel_target(scope)?),
+        Command::Restart => watch::restart(),
         Command::Clear => {
             // Stop the watcher first or it would immediately redress everything.
-            watch::stop();
-            std::thread::sleep(Duration::from_millis(150));
-            one_shot(true, None)
+            watch::stop()?;
+            one_shot(true, &Relabel::Nothing)
         }
         Command::Status => {
             status();
@@ -112,7 +115,7 @@ fn main() -> Result<()> {
     }
 }
 
-fn one_shot(clear: bool, force_tab: Option<&str>) -> Result<()> {
+fn one_shot(clear: bool, relabel: &Relabel) -> Result<()> {
     let client = Client::from_env();
     let icons = load_icons();
     let config = if clear {
@@ -127,33 +130,66 @@ fn one_shot(clear: bool, force_tab: Option<&str>) -> Result<()> {
         config: &config,
         state: &mut state,
         clear,
-        force_tab,
+        relabel,
     }
     .run()
 }
 
-/// The tab reset should re-adopt: the invoking pane's tab, the plugin action
-/// context's tab, or the focused tab, in that order.
-fn reset_target() -> Result<Option<String>> {
-    if let Ok(tab) = std::env::var("HERDR_TAB_ID")
-        && !tab.is_empty()
-    {
-        return Ok(Some(tab));
-    }
-    if let Ok(context) = std::env::var("HERDR_PLUGIN_CONTEXT_JSON")
-        && let Ok(value) = serde_json::from_str::<Value>(&context)
-    {
-        let tab = value
-            .pointer("/tab/tab_id")
-            .or_else(|| value.pointer("/tab/id"))
-            .or_else(|| value.pointer("/tab_id"))
-            .and_then(Value::as_str);
-        if let Some(tab) = tab {
-            return Ok(Some(tab.to_string()));
+#[derive(Clone, Copy, ValueEnum)]
+enum Scope {
+    /// The invoking or focused tab
+    Tab,
+    /// Every tab in the invoking or focused workspace
+    Workspace,
+    /// Every tab in the session
+    All,
+}
+
+/// Resolve a scope to concrete IDs: the invoking pane's context first, then
+/// the plugin action context, then whatever Herdr has focused.
+fn relabel_target(scope: Scope) -> Result<Relabel> {
+    match scope {
+        Scope::All => Ok(Relabel::All),
+        Scope::Tab => {
+            if let Some(tab) = caller_id("HERDR_TAB_ID", &["/tab/tab_id", "/tab/id", "/tab_id"]) {
+                return Ok(Relabel::Tab(tab));
+            }
+            let snapshot = Snapshot::fetch(&Client::from_env())?;
+            snapshot
+                .focused_tab_id
+                .map(Relabel::Tab)
+                .context("no invoking or focused tab to relabel")
+        }
+        Scope::Workspace => {
+            if let Some(workspace) = caller_id(
+                "HERDR_WORKSPACE_ID",
+                &["/workspace/workspace_id", "/workspace/id", "/workspace_id"],
+            ) {
+                return Ok(Relabel::Workspace(workspace));
+            }
+            let snapshot = Snapshot::fetch(&Client::from_env())?;
+            snapshot
+                .focused_tab_id
+                .and_then(|tab| snapshot.tabs.into_iter().find(|t| t.tab_id == tab))
+                .map(|tab| Relabel::Workspace(tab.workspace_id))
+                .context("no invoking or focused workspace to relabel")
         }
     }
-    let client = Client::from_env();
-    Ok(Snapshot::fetch(&client)?.focused_tab_id)
+}
+
+fn caller_id(variable: &str, context_pointers: &[&str]) -> Option<String> {
+    if let Ok(id) = std::env::var(variable)
+        && !id.is_empty()
+    {
+        return Some(id);
+    }
+    let context = std::env::var("HERDR_PLUGIN_CONTEXT_JSON").ok()?;
+    let value = serde_json::from_str::<Value>(&context).ok()?;
+    context_pointers
+        .iter()
+        .find_map(|pointer| value.pointer(pointer))
+        .and_then(Value::as_str)
+        .map(str::to_string)
 }
 
 fn status() {

@@ -9,7 +9,8 @@ Heraldr gives Herdr tabs and sidebar rows compact, live context without the user
 - **Watcher**: the per-session process that subscribes to Herdr events and reconciles labels.
 - **Kick**: the idempotent event entrypoint that starts a watcher when none holds the session.
 - **Owned tab**: a tab whose label Heraldr last set; tracked per session so manual renames are respected.
-- **Reset**: adopting a manually renamed tab back into automatic naming.
+- **Relabel**: adopting tabs into automatic naming, manual names included, for one tab, one workspace, or the whole session.
+- **Restart**: replacing the session's watcher with a fresh one from the `heraldr` on `PATH`, keeping labels and ownership.
 - **Clear**: stopping the watcher and removing every label and token Heraldr set.
 
 ## Domain specs
@@ -23,7 +24,7 @@ Heraldr gives Herdr tabs and sidebar rows compact, live context without the user
 
 ## Backlog
 
-- Extend the naming spec with label format, token semantics, reset rules, and icon fallback.
+- Extend the naming spec with label format, token semantics, and icon fallback.
 - Document the watcher, reconcile, snapshot, and rpc boundaries in `docs/architecture.md`.
 - Unit coverage for `rpc.rs`, `snapshot.rs`, and `watch.rs`.
 - Linux `aarch64` and musl targets once a user asks for them.

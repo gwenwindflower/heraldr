@@ -13,7 +13,7 @@ use crate::config::Config;
 use crate::labels;
 use crate::naming::{self, Icons};
 use crate::rpc::Client;
-use crate::snapshot::{Snapshot, Workspace, foreground_program};
+use crate::snapshot::{Snapshot, Tab, Workspace, foreground_program};
 use crate::state::Store;
 use crate::titles;
 
@@ -29,16 +29,33 @@ pub struct Pass<'a> {
     pub config: &'a Config,
     pub state: &'a mut Store,
     pub clear: bool,
-    pub force_tab: Option<&'a str>,
+    pub relabel: &'a Relabel,
+}
+
+/// The tabs a pass adopts into automatic naming, manual names included.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Relabel {
+    Nothing,
+    Tab(String),
+    Workspace(String),
+    All,
+}
+
+impl Relabel {
+    fn covers(&self, tab: &Tab) -> bool {
+        match self {
+            Self::Nothing => false,
+            Self::Tab(id) => *id == tab.tab_id,
+            Self::Workspace(id) => *id == tab.workspace_id,
+            Self::All => true,
+        }
+    }
 }
 
 impl Pass<'_> {
     pub fn run(&mut self) -> Result<()> {
         let snapshot = Snapshot::fetch(self.client)?;
         let session_dir = self.client.session_dir();
-        if let Some(tab) = self.force_tab {
-            self.state.forget(tab);
-        }
         self.workspaces(&snapshot, &session_dir);
         self.tabs(&snapshot);
         self.panes(&snapshot);
@@ -107,8 +124,10 @@ impl Pass<'_> {
                         unnumbered = Some(base.clone());
                     }
                 } else {
-                    let forced = self.force_tab == Some(tab.tab_id.as_str());
-                    if forced || self.state.eligible(&tab.tab_id, &stripped) {
+                    if self.relabel.covers(tab) {
+                        self.state.adopt(&tab.tab_id, &stripped);
+                    }
+                    if self.state.eligible(&tab.tab_id, &stripped) {
                         let Some(pane) = snapshot.active_pane(tab) else {
                             continue;
                         };

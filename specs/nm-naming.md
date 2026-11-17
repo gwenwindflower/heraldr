@@ -9,7 +9,7 @@ Owned tabs follow their foreground program across process transitions. Temporary
 - **nm-R001** — If foreground process inspection fails or finds no process-group leader, the watcher retains the tab's label and resumes automatic naming when inspection succeeds.
 - **nm-R002** — If a tab rename fails, Heraldr retains the last confirmed ownership label and retries automatic naming on a subsequent pass.
 - **nm-R003** — If a focused tab rename fails, the watcher continues polling without requiring a restart or another event.
-- **nm-R004** — When the user manually renames an owned tab, automatic naming remains disabled across subsequent process transitions until the user resets or clears the label.
+- **nm-R004** — When the user manually renames an owned tab, automatic naming remains disabled across subsequent process transitions until the user relabels or clears the tab.
 - **nm-R005** — Naming ownership belongs to one Herdr session; another session cannot change or prune its tab records, including when tab IDs match.
 - **nm-R006** — When a session first uses a dedicated ownership file, it preserves the records from an existing shared ownership file without modifying that shared file.
 - **nm-R007** — Plugin invocations store ownership and watcher locks in `HERDR_PLUGIN_STATE_DIR`, inheriting existing ownership from the standalone state directory when needed.
@@ -22,10 +22,13 @@ Owned tabs follow their foreground program across process transitions. Temporary
 - **nm-R014** — Session titles contain no terminal controls and fit `session_title_max_width` terminal columns, defaulting to 28, including an ellipsis when truncated without splitting a grapheme.
 - **nm-R015** — Session-title changes update owned tabs, and leaving an agent removes its title while preserving existing process tracking and jump-number rules.
 - **nm-R016** — Changes to plugin preferences reload without restarting the watcher; invalid preferences report the config path and retain the running watcher's last usable settings.
-- **nm-R017** — Manual tab names remain unchanged by agent icons and session titles until the user resets or clears the name.
+- **nm-R017** — Manual tab names remain unchanged by agent icons and session titles until the user relabels or clears the tab.
 - **nm-R018** — Missing token values disappear with their separators; an otherwise empty automatic label falls back to the foreground program.
 - **nm-R019** — `$session_title` appears only for the pane's current foreground agent, separated from preceding content by ` ⋅ `, and inherits Herdr's tab text style.
 - **nm-R020** — Clearing an owned tab removes its `$jump` token at any configured position while preserving bracketed text in titles and manually changed labels.
 - **nm-R021** — Successful plugin and local installations create missing `config.toml` preferences in Herdr's plugin configuration directory without replacing existing TOML or JSON files.
 - **nm-R022** — The installed configuration explicitly sets every preference to its runtime default and documents each setting, including its accepted string values and token examples.
 - **nm-R023** — Heraldr accepts TOML and JSON preferences, with `config.json` taking precedence when both files exist.
+- **nm-R024** — Relabeling adopts every tab in its scope into automatic naming, manual names included: the invoking or focused tab, the tabs of the invoking or focused workspace, or every tab in the session.
+- **nm-R025** — A relabeled tab whose foreground program cannot be read yet keeps its label and takes its automatic name on the first pass that can read it.
+- **nm-R026** — Restarting stops the session's watcher and starts a replacement from the `heraldr` on `PATH`, keeping labels and ownership, whether or not a watcher was running.

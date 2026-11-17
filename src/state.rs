@@ -130,11 +130,10 @@ impl Store {
         self.dirty = true;
     }
 
-    /// Drop a tab's entry entirely so the next pass re-adopts it (reset).
-    pub fn forget(&mut self, tab: &str) {
-        if self.tabs.remove(tab).is_some() {
-            self.dirty = true;
-        }
+    /// Take ownership of a tab at its current base label (relabel), so every
+    /// later pass renames it once its foreground program can be read.
+    pub fn adopt(&mut self, tab: &str, base: &str) {
+        self.record(tab, base, base);
     }
 
     /// Drop entries for tabs that no longer exist.
@@ -166,7 +165,7 @@ impl Store {
                 }
             }
             // Opted out. Re-adopt only on an explicit clear (empty label); a
-            // numeric label is a deliberate name (use reset instead).
+            // numeric label is a deliberate name (relabel instead).
             Some(state) if !state.enabled => base.is_empty(),
             // Owned: keep updating while the base still matches what Heraldr
             // last set; an empty label is the user clearing it back to us.
@@ -217,11 +216,15 @@ mod tests {
     }
 
     #[test]
-    fn forget_makes_a_tab_first_seen_again() {
+    fn adopt_owns_a_manually_named_tab_until_renamed_again() {
         let mut s = store();
         assert!(!s.eligible("t1", "notes"));
-        s.forget("t1");
-        assert!(s.eligible("t1", "3"), "reset re-adopts a placeholder label");
+        s.adopt("t1", "notes");
+        assert!(
+            s.eligible("t1", "notes"),
+            "adopted manual label stays owned"
+        );
+        assert!(!s.eligible("t1", "scratch"), "a later rename opts out");
     }
 
     #[test]

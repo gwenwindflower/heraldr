@@ -29,13 +29,36 @@ on = "pane.agent_detected"
 command = ["heraldr", "kick"]
 
 [[actions]]
-id = "reset"
-title = "Heraldr: reset tab to automatic naming"
+id = "relabel-tab"
+title = "Heraldr: relabel this tab"
+description = "Return this tab to automatic naming, replacing a manual name"
 contexts = ["global"]
-command = ["heraldr", "reset"]
+command = ["heraldr", "relabel", "--scope", "tab"]
 
 [[actions]]
-id = "clear"
-title = "Heraldr: strip all chrome"
+id = "relabel-workspace"
+title = "Heraldr: relabel tabs in this workspace"
+description = "Return every tab in this workspace to automatic naming, replacing manual names"
+contexts = ["global"]
+command = ["heraldr", "relabel", "--scope", "workspace"]
+
+[[actions]]
+id = "relabel-all"
+title = "Heraldr: relabel every tab"
+description = "Return every tab in the session to automatic naming, replacing manual names"
+contexts = ["global"]
+command = ["heraldr", "relabel", "--scope", "all"]
+
+[[actions]]
+id = "restart"
+title = "Heraldr: restart the label watcher"
+description = "Replace a stuck or outdated watcher with a fresh one, keeping labels and manual names"
+contexts = ["global"]
+command = ["heraldr", "restart"]
+
+[[actions]]
+id = "stop-clear-all"
+title = "Heraldr: stop and remove all labels"
+description = "Stop the watcher and strip jump numbers, icons, and sidebar tokens until the next tab or pane event"
 contexts = ["global"]
 command = ["heraldr", "clear"]
